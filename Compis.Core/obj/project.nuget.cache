@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "7TJMWZDcqls=",
+  "success": true,
+  "projectFilePath": "/Users/alekwagner/compis-software/Compis.Core/Compis.Core.csproj",
+  "expectedPackageFiles": [
+    "/Users/alekwagner/.nuget/packages/microsoft.netcore.app.ref/10.0.15/microsoft.netcore.app.ref.10.0.15.nupkg.sha512",
+    "/Users/alekwagner/.nuget/packages/microsoft.aspnetcore.app.ref/10.0.15/microsoft.aspnetcore.app.ref.10.0.15.nupkg.sha512"
+  ],
+  "logs": []
+}

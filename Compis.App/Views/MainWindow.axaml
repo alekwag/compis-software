@@ -4,6 +4,7 @@
         xmlns:vm="using:Compis.App.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:controls="using:Compis.App.Controls"
         mc:Ignorable="d"
         x:Class="Compis.App.Views.MainWindow"
         x:DataType="vm:MainViewModel"
@@ -121,6 +122,10 @@
                             Background="Transparent"
                             Foreground="#B8BBC0"/>
 
+                    <Button
+                    Content="+ Add Building"
+                    Command="{Binding AddBuildingVolumeCommand}" />
+
                 </StackPanel>
             </Border>
 
@@ -134,21 +139,9 @@
                             VerticalAlignment="Center"
                             Spacing="12">
 
-                    <TextBlock Text="COMPIS"
-                               FontSize="34"
-                               FontWeight="Light"
-                               Foreground="#555B63"
-                               HorizontalAlignment="Center"/>
-
-                    <TextBlock Text="3D VIEWPORT"
-                               FontSize="11"
-                               Foreground="#858A91"
-                               HorizontalAlignment="Center"/>
-
-                    <TextBlock Text="Your architectural workspace"
-                               FontSize="12"
-                               Foreground="#666C73"
-                               HorizontalAlignment="Center"/>
+                    <controls:ViewportControl
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch"/>
 
                 </StackPanel>
 
@@ -177,6 +170,42 @@
                 <StackPanel Margin="18"
                             Spacing="18">
 
+                
+                <!-- SCENE HIERARCHY -->
+
+                <TextBlock Text="SCENE"
+                        FontSize="10"
+                        Foreground="#C69B65"/>
+
+                <Border Background="#202327"
+                        BorderBrush="#35393E"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="8">
+
+                                        
+                    <ListBox ItemsSource="{Binding Volumes}"
+                            SelectedItem="{Binding SelectedVolume, Mode=TwoWay}"
+                            Background="Transparent"
+                            BorderThickness="0">
+
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Name}"
+                                        FontSize="12"
+                                        Foreground="#B8BBC0"
+                                        Margin="4,6"/>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+
+                    </ListBox>
+
+
+                </Border>
+
+                <Border Height="1"
+                        Background="#41454A"/>
+
                     <TextBlock Text="PROPERTIES"
                                FontSize="12"
                                FontWeight="Bold"
@@ -185,47 +214,91 @@
                     <Border Height="1"
                             Background="#41454A"/>
 
-                    <TextBlock Text="SCENE"
-                               FontSize="10"
-                               Foreground="#C69B65"/>
-
-                    <TextBlock Text="No object selected"
-                               FontSize="12"
-                               Foreground="#858A91"/>
-
+                    
                     <Border Height="1"
                             Background="#41454A"/>
+
+
+                    
+                    <!-- TRANSFORM -->
 
                     <TextBlock Text="TRANSFORM"
-                               FontSize="10"
-                               Foreground="#C69B65"/>
+                            FontSize="10"
+                            Foreground="#C69B65"/>
 
-                    <TextBlock Text="Location"
-                               FontSize="12"
-                               Foreground="#B8BBC0"/>
+                    <TextBlock Text="LOCATION"
+                            FontSize="11"
+                            Foreground="#B8BBC0"/>
 
-                    <TextBlock Text="X     0.00"
-                               FontSize="12"
-                               Foreground="#858A91"/>
+                    <TextBlock Text="{Binding SelectedVolume.Position.X, StringFormat='X     {0:F2}'}"
+                            FontSize="12"
+                            Foreground="#858A91"/>
 
-                    <TextBlock Text="Y     0.00"
-                               FontSize="12"
-                               Foreground="#858A91"/>
+                    <TextBlock Text="{Binding SelectedVolume.Position.Y, StringFormat='Y     {0:F2}'}"
+                            FontSize="12"
+                            Foreground="#858A91"/>
 
-                    <TextBlock Text="Z     0.00"
-                               FontSize="12"
-                               Foreground="#858A91"/>
+                    <TextBlock Text="{Binding SelectedVolume.Position.Z, StringFormat='Z     {0:F2}'}"
+                            FontSize="12"
+                            Foreground="#858A91"/>
+
+                    <Border Height="1" Background="#41454A"/>
+
+                    
+                    <!-- DIMENSIONS -->
+
+                    <TextBlock Text="DIMENSIONS"
+                            FontSize="10"
+                            Foreground="#C69B65"/>
+
+                    
+                    <!-- WIDTH -->
+                    <TextBlock Text="Width (m)"
+                            FontSize="11"
+                            Foreground="#B8BBC0"/>
+
+                    <TextBox Text="{Binding WidthInput, UpdateSourceTrigger=PropertyChanged}"
+                            Background="#202327"
+                            Foreground="#EEEEEE"
+                            BorderBrush="#41454A"
+                            Padding="8"/>
+
+                    <!-- DEPTH -->
+                    <TextBlock Text="Depth (m)"
+                            FontSize="11"
+                            Foreground="#B8BBC0"/>
+
+                    <TextBox Text="{Binding DepthInput, UpdateSourceTrigger=PropertyChanged}"
+                            Background="#202327"
+                            Foreground="#EEEEEE"
+                            BorderBrush="#41454A"
+                            Padding="8"/>
+
+                    <!-- HEIGHT -->
+                    <TextBlock Text="Height (m)"
+                            FontSize="11"
+                            Foreground="#B8BBC0"/>
+
+                    <TextBox Text="{Binding HeightInput, UpdateSourceTrigger=PropertyChanged}"
+                            Background="#202327"
+                            Foreground="#EEEEEE"
+                            BorderBrush="#41454A"
+                            Padding="8"/>
+
+
 
                     <Border Height="1"
                             Background="#41454A"/>
+
+                    <TextBlock Text="{Binding SelectedVolume.Name, FallbackValue='No object selected'}"
+                    FontSize="13"
+                    FontWeight="SemiBold"
+                    Foreground="#EEEEEE"/>
 
                     <TextBlock Text="DIMENSIONS"
                                FontSize="10"
                                Foreground="#C69B65"/>
 
-                    <TextBlock Text="No dimensions available"
-                               FontSize="12"
-                               Foreground="#858A91"/>
 
                 </StackPanel>
             </Border>
@@ -233,26 +306,42 @@
         </Grid>
 
 
-        <!-- BOTTOM STATUS BAR -->
+                <!-- BOTTOM STATUS BAR -->
 
         <Border Grid.Row="2"
                 Background="#292D32"
                 BorderBrush="#35393E"
                 BorderThickness="0,1,0,0">
 
-            <Grid ColumnDefinitions="*,Auto"
-                  Margin="12,0">
+            <Grid ColumnDefinitions="Auto,*,Auto"
+            Margin="12,0">
 
-                <TextBlock Text="Ready"
-                           FontSize="10"
-                           Foreground="#858A91"
-                           VerticalAlignment="Center"/>
+                <!-- Left side -->
+                <TextBlock Grid.Column="0"
+                        Text="Ready"
+                        FontSize="10"
+                        Foreground="#858A91"
+                        VerticalAlignment="Center"
+                        />
+
 
                 <TextBlock Grid.Column="1"
-                           Text="COMPIS | DEVELOPMENT BUILD"
-                           FontSize="10"
-                           Foreground="#858A91"
-                           VerticalAlignment="Center"/>
+                Text="{Binding ObjectCount, StringFormat='Objects: {0}'}"
+                FontSize="10"
+                Foreground="#EEEEEE"
+                VerticalAlignment="Center"
+                Margin="0,0,18,0"/>
+
+
+                <!-- Right side -->
+                <TextBlock Grid.Column="2"
+                        Text="COMPIS | DEVELOPMENT BUILD"
+                        FontSize="10"
+                        Foreground="#858A91"
+                        VerticalAlignment="Center"
+                        Margin="0,0,18,0"/>
+
+                
 
             </Grid>
         </Border>

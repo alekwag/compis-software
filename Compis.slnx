@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Compis.App/Compis.App.csproj" />
+  <Project Path="Compis.Core/Compis.Core.csproj" />
+</Solution>
