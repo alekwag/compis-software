@@ -19,6 +19,28 @@
         <vm:MainViewModel />
     </Design.DataContext>
 
+        <Window.Styles>
+                <Style Selector="TextBox">
+                        <Setter Property="Background" Value="#202327"/>
+                        <Setter Property="Foreground" Value="#EEEEEE"/>
+                        <Setter Property="BorderBrush" Value="#41454A"/>
+                        <Setter Property="Padding" Value="8,5"/>
+                        <Setter Property="MinHeight" Value="32"/>
+                </Style>
+                <Style Selector="ToggleButton">
+                        <Setter Property="Width" Value="36"/>
+                        <Setter Property="Height" Value="36"/>
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="Foreground" Value="#B8BBC0"/>
+                        <Setter Property="BorderBrush" Value="Transparent"/>
+                </Style>
+                <Style Selector="ToggleButton:checked">
+                        <Setter Property="Background" Value="#3A3E44"/>
+                        <Setter Property="Foreground" Value="#D4AA77"/>
+                </Style>
+        </Window.Styles>
+
     <Grid RowDefinitions="56,*,28"
           Background="#191B1F">
 
@@ -29,41 +51,27 @@
                 BorderBrush="#35393E"
                 BorderThickness="0,0,0,1">
 
-            <Grid ColumnDefinitions="200,*,Auto"
-                  Margin="20,0">
+                <Grid ColumnDefinitions="*,Auto"
+                        Margin="16,0">
 
                 <StackPanel Orientation="Horizontal"
                             VerticalAlignment="Center"
                             Spacing="12">
 
                     <TextBlock Text="C"
-                               FontSize="27"
+                               FontSize="24"
                                FontWeight="Bold"
                                Foreground="#C69B65"/>
 
                     <TextBlock Text="COMPIS"
-                               FontSize="16"
+                               FontSize="14"
                                FontWeight="Bold"
                                Foreground="#EEEEEE"
                                VerticalAlignment="Center"/>
 
                 </StackPanel>
 
-                <StackPanel Grid.Column="1"
-                            Orientation="Horizontal"
-                            VerticalAlignment="Center"
-                            Spacing="24">
-
-                    <TextBlock Text="File" Foreground="#B8BBC0"/>
-                    <TextBlock Text="Edit" Foreground="#B8BBC0"/>
-                    <TextBlock Text="View" Foreground="#B8BBC0"/>
-                    <TextBlock Text="Create" Foreground="#B8BBC0"/>
-                    <TextBlock Text="Tools" Foreground="#B8BBC0"/>
-                    <TextBlock Text="Help" Foreground="#B8BBC0"/>
-
-                </StackPanel>
-
-                <TextBlock Grid.Column="2"
+                                <TextBlock Grid.Column="1"
                            Text="UNTITLED PROJECT"
                            FontSize="10"
                            Foreground="#858A91"
@@ -76,7 +84,7 @@
         <!-- MAIN WORKSPACE -->
 
         <Grid Grid.Row="1"
-              ColumnDefinitions="64,*,280">
+              ColumnDefinitions="56,*,296">
 
             <!-- LEFT TOOLBAR -->
 
@@ -85,28 +93,23 @@
                     BorderBrush="#35393E"
                     BorderThickness="0,0,1,0">
 
-                <StackPanel Margin="0,18"
-                            Spacing="12">
+                <StackPanel Margin="10,16"
+                            Spacing="8">
 
-                    <Button Content="↖"
-                            FontSize="22"
-                            Background="#3A3E44"
-                            Foreground="#D4AA77"/>
-
-                    <Button Content="✥"
+                    <ToggleButton Content="✥"
                             FontSize="20"
-                            Background="Transparent"
-                            Foreground="#B8BBC0"/>
+                            IsChecked="{Binding IsTranslateMode, Mode=TwoWay}"
+                            ToolTip.Tip="Move selected box"/>
 
-                    <Button Content="↻"
+                    <ToggleButton Content="↻"
                             FontSize="20"
-                            Background="Transparent"
-                            Foreground="#B8BBC0"/>
+                            IsChecked="{Binding IsRotateMode, Mode=TwoWay}"
+                            ToolTip.Tip="Rotate selected box"/>
 
-                    <Button Content="□"
+                    <ToggleButton Content="□"
                             FontSize="20"
-                            Background="Transparent"
-                            Foreground="#B8BBC0"/>
+                            IsChecked="{Binding IsScaleMode, Mode=TwoWay}"
+                            ToolTip.Tip="Scale selected box"/>
 
                     <Border Height="1"
                             Background="#41454A"
@@ -114,17 +117,13 @@
 
                     <Button Content="+"
                             FontSize="24"
+                            Width="36" Height="36" Padding="0"
+                            HorizontalAlignment="Center"
                             Background="Transparent"
-                            Foreground="#C69B65"/>
-
-                    <Button Content="▱"
-                            FontSize="20"
-                            Background="Transparent"
-                            Foreground="#B8BBC0"/>
-
-                    <Button
-                    Content="+ Add Building"
-                    Command="{Binding AddBuildingVolumeCommand}" />
+                            Foreground="#C69B65"
+                            BorderBrush="Transparent"
+                            ToolTip.Tip="Add box"
+                            Command="{Binding AddBuildingVolumeCommand}" />
 
                 </StackPanel>
             </Border>
@@ -132,11 +131,13 @@
 
             <!-- CENTRAL VIEWPORT -->
 
-                        <Grid Grid.Column="1"
-                                Background="#202327">
+            <Grid Grid.Column="1"
+                    Background="#202327">
 
                 <controls:ViewportControl
                     Scene="{Binding Scene}"
+                    SelectedVolume="{Binding SelectedVolume}"
+                    TransformMode="{Binding CurrentTransformMode}"
                     HorizontalAlignment="Stretch"
                     VerticalAlignment="Stretch"/>
 
@@ -161,13 +162,15 @@
                     BorderBrush="#35393E"
                     BorderThickness="1,0,0,0">
 
-                <StackPanel Margin="18"
-                            Spacing="18">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                                          HorizontalScrollBarVisibility="Disabled">
+                                        <StackPanel Margin="18"
+                                                                Spacing="18">
 
                 
                 <!-- SCENE HIERARCHY -->
 
-                <TextBlock Text="SCENE"
+                <TextBlock Text="OBJECTS"
                         FontSize="10"
                         Foreground="#C69B65"/>
 
@@ -197,44 +200,96 @@
 
                 </Border>
 
-                <Border Height="1"
-                        Background="#41454A"/>
+                <Border Height="1" Background="#41454A"/>
 
-                    <TextBlock Text="PROPERTIES"
-                               FontSize="12"
-                               FontWeight="Bold"
+                    <TextBlock Text="{Binding SelectedVolume.Name, FallbackValue='PROPERTIES'}"
+                               FontSize="14"
+                               FontWeight="SemiBold"
                                Foreground="#EEEEEE"/>
-
-                    <Border Height="1"
-                            Background="#41454A"/>
-
-                    
-                    <Border Height="1"
-                            Background="#41454A"/>
-
-
-                    
-                    <!-- TRANSFORM -->
 
                     <TextBlock Text="TRANSFORM"
                             FontSize="10"
                             Foreground="#C69B65"/>
 
-                    <TextBlock Text="LOCATION"
+                    <TextBlock Text="POSITION"
                             FontSize="11"
                             Foreground="#B8BBC0"/>
 
-                    <TextBlock Text="{Binding SelectedVolume.Position.X, StringFormat='X     {0:F2}'}"
-                            FontSize="12"
-                            Foreground="#858A91"/>
+                    <Grid ColumnDefinitions="Auto,*"
+                        RowDefinitions="Auto,Auto,Auto"
+                        ColumnSpacing="12"
+                        RowSpacing="8">
 
-                    <TextBlock Text="{Binding SelectedVolume.Position.Y, StringFormat='Y     {0:F2}'}"
-                            FontSize="12"
-                            Foreground="#858A91"/>
+                        <TextBlock Text="X"
+                                Foreground="#D66A60"
+                                VerticalAlignment="Center"/>
 
-                    <TextBlock Text="{Binding SelectedVolume.Position.Z, StringFormat='Z     {0:F2}'}"
-                            FontSize="12"
-                            Foreground="#858A91"/>
+                        <TextBox Grid.Column="1"
+                                Text="{Binding XInput, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <TextBlock Grid.Row="1"
+                                Text="Y"
+                                Foreground="#79B879"
+                                VerticalAlignment="Center"/>
+
+                        <TextBox Grid.Row="1"
+                                Grid.Column="1"
+                                Text="{Binding YInput, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <TextBlock Grid.Row="2"
+                                Text="Z"
+                                Foreground="#719BD6"
+                                VerticalAlignment="Center"/>
+
+                        <TextBox Grid.Row="2"
+                                Grid.Column="1"
+                                Text="{Binding ZInput, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    </Grid>
+
+                    <TextBlock Text="ROTATION (DEG)"
+                            FontSize="11"
+                            Foreground="#B8BBC0"/>
+
+                    <Grid ColumnDefinitions="Auto,*"
+                            RowDefinitions="Auto,Auto,Auto"
+                            ColumnSpacing="12"
+                            RowSpacing="8">
+
+                        <TextBlock Text="X" Foreground="#D66A60" VerticalAlignment="Center"/>
+                        <TextBox Grid.Column="1"
+                                Text="{Binding RotationXInput, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <TextBlock Grid.Row="1" Text="Y" Foreground="#79B879" VerticalAlignment="Center"/>
+                        <TextBox Grid.Row="1" Grid.Column="1"
+                                Text="{Binding RotationYInput, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <TextBlock Grid.Row="2" Text="Z" Foreground="#719BD6" VerticalAlignment="Center"/>
+                        <TextBox Grid.Row="2" Grid.Column="1"
+                                Text="{Binding RotationZInput, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+
+                    <TextBlock Text="SCALE"
+                            FontSize="11"
+                            Foreground="#B8BBC0"/>
+
+                    <Grid ColumnDefinitions="Auto,*"
+                            RowDefinitions="Auto,Auto,Auto"
+                            ColumnSpacing="12"
+                            RowSpacing="8">
+
+                        <TextBlock Text="X" Foreground="#D66A60" VerticalAlignment="Center"/>
+                        <TextBox Grid.Column="1"
+                                Text="{Binding ScaleXInput, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <TextBlock Grid.Row="1" Text="Y" Foreground="#79B879" VerticalAlignment="Center"/>
+                        <TextBox Grid.Row="1" Grid.Column="1"
+                                Text="{Binding ScaleYInput, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <TextBlock Grid.Row="2" Text="Z" Foreground="#719BD6" VerticalAlignment="Center"/>
+                        <TextBox Grid.Row="2" Grid.Column="1"
+                                Text="{Binding ScaleZInput, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
 
                     <Border Height="1" Background="#41454A"/>
 
@@ -251,50 +306,26 @@
                             FontSize="11"
                             Foreground="#B8BBC0"/>
 
-                    <TextBox Text="{Binding WidthInput, UpdateSourceTrigger=PropertyChanged}"
-                            Background="#202327"
-                            Foreground="#EEEEEE"
-                            BorderBrush="#41454A"
-                            Padding="8"/>
+                    <TextBox Text="{Binding WidthInput, UpdateSourceTrigger=PropertyChanged}"/>
 
                     <!-- DEPTH -->
                     <TextBlock Text="Depth (m)"
                             FontSize="11"
                             Foreground="#B8BBC0"/>
 
-                    <TextBox Text="{Binding DepthInput, UpdateSourceTrigger=PropertyChanged}"
-                            Background="#202327"
-                            Foreground="#EEEEEE"
-                            BorderBrush="#41454A"
-                            Padding="8"/>
+                    <TextBox Text="{Binding DepthInput, UpdateSourceTrigger=PropertyChanged}"/>
 
                     <!-- HEIGHT -->
                     <TextBlock Text="Height (m)"
                             FontSize="11"
                             Foreground="#B8BBC0"/>
 
-                    <TextBox Text="{Binding HeightInput, UpdateSourceTrigger=PropertyChanged}"
-                            Background="#202327"
-                            Foreground="#EEEEEE"
-                            BorderBrush="#41454A"
-                            Padding="8"/>
+                    <TextBox Text="{Binding HeightInput, UpdateSourceTrigger=PropertyChanged}"/>
 
 
 
-                    <Border Height="1"
-                            Background="#41454A"/>
-
-                    <TextBlock Text="{Binding SelectedVolume.Name, FallbackValue='No object selected'}"
-                    FontSize="13"
-                    FontWeight="SemiBold"
-                    Foreground="#EEEEEE"/>
-
-                    <TextBlock Text="DIMENSIONS"
-                               FontSize="10"
-                               Foreground="#C69B65"/>
-
-
-                </StackPanel>
+                                        </StackPanel>
+                                </ScrollViewer>
             </Border>
 
         </Grid>

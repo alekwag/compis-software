@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Compis.Core")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+44bcc9fb6ba8267858b67e61cba03470d0342b13")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+16db1b5f05efeea303b85c0b43ea3f490d3f6794")]
 [assembly: System.Reflection.AssemblyProductAttribute("Compis.Core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Compis.Core")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

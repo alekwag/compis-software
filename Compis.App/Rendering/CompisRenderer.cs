@@ -3,6 +3,8 @@ using Avalonia.OpenGL;
 using Silk.NET.OpenGL;
 using Compis.App.Rendering.Camera;
 using Compis.Core.Scene;
+using Compis.Core.Objects;
+using System.Numerics;
 
 namespace Compis.App.Rendering;
 
@@ -16,6 +18,10 @@ public sealed class CompisRenderer
 
     public BuildingScene? Scene { get; set; }
 
+    public BuildingVolume? SelectedVolume { get; set; }
+    public TransformMode TransformMode { get; set; } = TransformMode.Translate;
+    private TransformGizmoRenderer? _gizmo;
+
     public void Initialize(GlInterface gl)
     {
         _gl = GL.GetApi(
@@ -27,6 +33,9 @@ public sealed class CompisRenderer
 
         _buildingRenderer = new BuildingVolumeRenderer(_gl);
         _buildingRenderer.Initialize();
+
+        _gizmo = new TransformGizmoRenderer(_gl);
+        _gizmo.Initialize();
     }
 
     public void Render(int framebuffer, int width, int height)
@@ -57,6 +66,15 @@ public sealed class CompisRenderer
         {
             _buildingRenderer.Render(Scene, view, projection);
         }
+
+        if (SelectedVolume is not null)
+        {
+            _gizmo?.Render(
+                SelectedVolume.Position,
+                TransformMode,
+                view,
+                projection);
+        }
     }
 
     public void Dispose()
@@ -68,6 +86,9 @@ public sealed class CompisRenderer
         _buildingRenderer = null;
         _grid = null;
         _gl = null;
+
+        _gizmo?.Dispose();
+        _gizmo = null;
     }
 
     public void Orbit(float deltaYaw, float deltaPitch)
@@ -84,4 +105,11 @@ public sealed class CompisRenderer
     {
         _camera.Zoom(amount);
     }
-}
+
+    public Matrix4x4 GetViewMatrix() => _camera.GetViewMatrix();
+
+    public Matrix4x4 GetProjectionMatrix(float aspectRatio) =>
+        _camera.GetProjectionMatrix(aspectRatio);
+
+    public Vector3 CameraPosition => _camera.Position;
+    }

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Compis.GeometryTest")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1900b22e1cacf1cf91baa78081d57c4a2b9d8732")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+16db1b5f05efeea303b85c0b43ea3f490d3f6794")]
 [assembly: System.Reflection.AssemblyProductAttribute("Compis.GeometryTest")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Compis.GeometryTest")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -1,4 +1,5 @@
 
+using System.Numerics;
 using Compis.Core.Objects;
 using Compis.Core.Geometry.Meshes;
 using Compis.Core.Parameters;
@@ -13,21 +14,37 @@ public static class BoxMeshGenerator
         double halfDepth = volume.Dimensions.Depth / 2;
         double height = volume.Dimensions.Height;
 
-        double x = volume.Position.X;
-        double y = volume.Position.Y;
-        double z = volume.Position.Z;
+        Vector3 position = new(
+            (float)volume.Position.X,
+            (float)volume.Position.Y,
+            (float)volume.Position.Z);
+        Vector3 scale = new(
+            (float)volume.Scale.X,
+            (float)volume.Scale.Y,
+            (float)volume.Scale.Z);
+        Quaternion rotation = Quaternion.CreateFromYawPitchRoll(
+            DegreesToRadians(volume.Rotation.Y),
+            DegreesToRadians(volume.Rotation.X),
+            DegreesToRadians(volume.Rotation.Z));
+
+        Position3D Transform(double x, double y, double z)
+        {
+            Vector3 local = new((float)x, (float)y, (float)z);
+            Vector3 transformed = Vector3.Transform(local * scale, rotation) + position;
+            return new Position3D(transformed.X, transformed.Y, transformed.Z);
+        }
 
         var vertices = new List<Position3D>
         {
-            new(x - halfWidth, y - halfDepth, z),
-            new(x + halfWidth, y - halfDepth, z),
-            new(x + halfWidth, y + halfDepth, z),
-            new(x - halfWidth, y + halfDepth, z),
+            Transform(-halfWidth, -halfDepth, 0),
+            Transform(halfWidth, -halfDepth, 0),
+            Transform(halfWidth, halfDepth, 0),
+            Transform(-halfWidth, halfDepth, 0),
 
-            new(x - halfWidth, y - halfDepth, z + height),
-            new(x + halfWidth, y - halfDepth, z + height),
-            new(x + halfWidth, y + halfDepth, z + height),
-            new(x - halfWidth, y + halfDepth, z + height)
+            Transform(-halfWidth, -halfDepth, height),
+            Transform(halfWidth, -halfDepth, height),
+            Transform(halfWidth, halfDepth, height),
+            Transform(-halfWidth, halfDepth, height)
         };
 
         var triangles = new List<int>
@@ -59,4 +76,7 @@ public static class BoxMeshGenerator
 
         return new MeshData(vertices, triangles);
     }
+
+    private static float DegreesToRadians(double degrees) =>
+        (float)(degrees * Math.PI / 180.0);
 }

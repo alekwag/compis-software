@@ -8,12 +8,27 @@ using Avalonia.OpenGL.Controls;
 using Avalonia.Rendering;
 using Compis.App.Rendering;
 using Compis.Core.Scene;
+using Compis.Core.Objects;
+using System.Numerics;
+using Compis.Core.Parameters;
 
 namespace Compis.App.Controls;
 
 public sealed class ViewportControl : OpenGlControlBase, ICustomHitTest
 {
     private readonly CompisRenderer _renderer = new();
+
+    private GizmoAxis _dragAxis = GizmoAxis.None;
+
+    private Position3D _dragStartPosition = new(0, 0, 0);
+
+    private float _dragStartAxisParameter;
+    private Rotation3D _dragStartRotation = Rotation3D.Zero;
+    private Scale3D _dragStartScale = Scale3D.One;
+    private TransformMode _dragMode;
+    private float _lastRotationAngle;
+    private float _rotationDragTotal;
+
 
     public static readonly StyledProperty<BuildingScene?> SceneProperty =
         AvaloniaProperty.Register<ViewportControl, BuildingScene?>(
@@ -25,10 +40,31 @@ public sealed class ViewportControl : OpenGlControlBase, ICustomHitTest
         set => SetValue(SceneProperty, value);
     }
 
+    public static readonly StyledProperty<BuildingVolume?> SelectedVolumeProperty =
+    AvaloniaProperty.Register<ViewportControl, BuildingVolume?>(
+        nameof(SelectedVolume));
+
+    public BuildingVolume? SelectedVolume
+    {
+        get => GetValue(SelectedVolumeProperty);
+        set => SetValue(SelectedVolumeProperty, value);
+    }
+
+    public static readonly StyledProperty<TransformMode> TransformModeProperty =
+        AvaloniaProperty.Register<ViewportControl, TransformMode>(
+            nameof(TransformMode), TransformMode.Translate);
+
+    public TransformMode TransformMode
+    {
+        get => GetValue(TransformModeProperty);
+        set => SetValue(TransformModeProperty, value);
+    }
+
     private bool _rendererInitialized;
     private bool _isDragging;
     private bool _isPanning;
     private Point _lastPointerPosition;
+    private BuildingVolume? _observedSelectedVolume;
 
     public ViewportControl()
     {
@@ -73,21 +109,88 @@ public sealed class ViewportControl : OpenGlControlBase, ICustomHitTest
 
     // Mouse: drag to orbit, Shift + drag to pan.
     protected override void OnPointerPressed(PointerPressedEventArgs e)
-{
-    base.OnPointerPressed(e);
-
-    var properties = e.GetCurrentPoint(this).Properties;
-
-    if (properties.IsLeftButtonPressed || properties.IsMiddleButtonPressed)
     {
+        base.OnPointerPressed(e);
+
+        var properties = e.GetCurrentPoint(this).Properties;
+
+        if (!properties.IsLeftButtonPressed &&
+            !properties.IsMiddleButtonPressed)
+            return;
+
+        Point pointer = e.GetPosition(this);
+
+        if (properties.IsLeftButtonPressed && SelectedVolume is not null)
+        {
+            float aspectRatio = (float)Bounds.Width / (float)Bounds.Height;
+
+            var view = _renderer.GetViewMatrix();
+            var projection = _renderer.GetProjectionMatrix(aspectRatio);
+
+            Vector3 origin = new(
+                (float)SelectedVolume.Position.X,
+                (float)SelectedVolume.Position.Y,
+                (float)SelectedVolume.Position.Z);
+
+            Vector2 pointerPosition = new((float)pointer.X, (float)pointer.Y);
+            _dragAxis = TransformMode == TransformMode.Rotate
+                ? GizmoAxisPicker.PickRotationAxis(
+                    pointerPosition, (float)Bounds.Width, (float)Bounds.Height,
+                    origin, view, projection)
+                : GizmoAxisPicker.PickAxis(
+                    pointerPosition, (float)Bounds.Width, (float)Bounds.Height,
+                    origin, view, projection);
+
+            if (_dragAxis != GizmoAxis.None)
+            {
+                _dragStartPosition = SelectedVolume.Position;
+                _dragStartRotation = SelectedVolume.Rotation;
+                _dragStartScale = SelectedVolume.Scale;
+                _dragMode = TransformMode;
+
+                if (_dragMode == TransformMode.Rotate)
+                {
+                    if (GizmoAxisPicker.TryGetRotationAngle(
+                            pointerPosition, (float)Bounds.Width, (float)Bounds.Height,
+                            origin, _dragAxis, view, projection, out float startAngle))
+                    {
+                        _lastRotationAngle = startAngle;
+                        _rotationDragTotal = 0f;
+                        _isDragging = true;
+                    }
+                }
+                else
+                {
+                    _dragStartAxisParameter = GizmoAxisPicker.GetAxisParameter(
+                        pointerPosition,
+                        (float)Bounds.Width,
+                        (float)Bounds.Height,
+                        origin,
+                        GetAxisDirection(_dragAxis),
+                        view,
+                        projection);
+                    _isDragging = true;
+                }
+
+                if (_isDragging)
+                {
+                    e.Pointer.Capture(this);
+                    e.Handled = true;
+                    return;
+                }
+
+                _dragAxis = GizmoAxis.None;
+            }
+        }
+
         _isDragging = true;
         _isPanning = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
-        _lastPointerPosition = e.GetPosition(this);
+
+        _lastPointerPosition = pointer;
 
         e.Pointer.Capture(this);
         e.Handled = true;
     }
-}
 
     protected override void OnPointerMoved(PointerEventArgs e)
     {
@@ -98,6 +201,88 @@ public sealed class ViewportControl : OpenGlControlBase, ICustomHitTest
 
         Point current = e.GetPosition(this);
 
+        // Moving a building along a selected axis.
+        if (_dragAxis != GizmoAxis.None && SelectedVolume is not null)
+        {
+            float aspectRatio = (float)Bounds.Width / (float)Bounds.Height;
+
+            var view = _renderer.GetViewMatrix();
+            var projection = _renderer.GetProjectionMatrix(aspectRatio);
+
+            Vector3 origin = new(
+                (float)_dragStartPosition.X,
+                (float)_dragStartPosition.Y,
+                (float)_dragStartPosition.Z);
+
+            Vector2 pointerPosition = new((float)current.X, (float)current.Y);
+
+            if (_dragMode == TransformMode.Rotate)
+            {
+                if (!GizmoAxisPicker.TryGetRotationAngle(
+                        pointerPosition, (float)Bounds.Width, (float)Bounds.Height,
+                        origin, _dragAxis, view, projection, out float currentAngle))
+                    return;
+
+                float step = currentAngle - _lastRotationAngle;
+                if (step > MathF.PI)
+                    step -= MathF.Tau;
+                else if (step < -MathF.PI)
+                    step += MathF.Tau;
+
+                _rotationDragTotal += step;
+                _lastRotationAngle = currentAngle;
+                float deltaDegrees = _rotationDragTotal * (180f / MathF.PI);
+
+                Rotation3D rotation = _dragAxis switch
+                {
+                    GizmoAxis.X => new Rotation3D(_dragStartRotation.X + deltaDegrees, _dragStartRotation.Y, _dragStartRotation.Z),
+                    GizmoAxis.Y => new Rotation3D(_dragStartRotation.X, _dragStartRotation.Y + deltaDegrees, _dragStartRotation.Z),
+                    GizmoAxis.Z => new Rotation3D(_dragStartRotation.X, _dragStartRotation.Y, _dragStartRotation.Z + deltaDegrees),
+                    _ => _dragStartRotation
+                };
+                SelectedVolume.RotateTo(rotation);
+            }
+            else
+            {
+                float currentParameter = GizmoAxisPicker.GetAxisParameter(
+                    pointerPosition,
+                    (float)Bounds.Width,
+                    (float)Bounds.Height,
+                    origin,
+                    GetAxisDirection(_dragAxis),
+                    view,
+                    projection);
+
+                float movement = currentParameter - _dragStartAxisParameter;
+                if (_dragMode == TransformMode.Scale)
+                {
+                    float factor = MathF.Max(0.01f, 1f + movement / 3f);
+                    Scale3D scale = _dragAxis switch
+                    {
+                        GizmoAxis.X => new Scale3D(_dragStartScale.X * factor, _dragStartScale.Y, _dragStartScale.Z),
+                        GizmoAxis.Y => new Scale3D(_dragStartScale.X, _dragStartScale.Y * factor, _dragStartScale.Z),
+                        GizmoAxis.Z => new Scale3D(_dragStartScale.X, _dragStartScale.Y, _dragStartScale.Z * factor),
+                        _ => _dragStartScale
+                    };
+                    SelectedVolume.ScaleTo(scale);
+                }
+                else
+                {
+                    Vector3 newPosition = origin + GetAxisDirection(_dragAxis) * movement;
+                    SelectedVolume.MoveTo(new Position3D(
+                        newPosition.X,
+                        newPosition.Y,
+                        newPosition.Z));
+                }
+            }
+
+            RequestNextFrameRendering();
+
+            e.Handled = true;
+            return;
+        }
+
+        // Existing camera navigation.
         double dx = current.X - _lastPointerPosition.X;
         double dy = current.Y - _lastPointerPosition.Y;
 
@@ -122,6 +307,8 @@ public sealed class ViewportControl : OpenGlControlBase, ICustomHitTest
 
         _isDragging = false;
         _isPanning = false;
+        _dragAxis = GizmoAxis.None;
+
         e.Pointer.Capture(null);
     }
 
@@ -182,13 +369,60 @@ public sealed class ViewportControl : OpenGlControlBase, ICustomHitTest
 
     protected override void OnPropertyChanged(
     AvaloniaPropertyChangedEventArgs change)
-{
-    base.OnPropertyChanged(change);
-
-    if (change.Property == SceneProperty)
     {
-        _renderer.Scene = change.GetNewValue<BuildingScene?>();
-        RequestNextFrameRendering();
+        base.OnPropertyChanged(change);
+
+        if (change.Property == SceneProperty)
+        {
+            _renderer.Scene = change.GetNewValue<BuildingScene?>();
+            RequestNextFrameRendering();
+        }
+        else if (change.Property == SelectedVolumeProperty)
+        {
+            if (_observedSelectedVolume is not null)
+                _observedSelectedVolume.PropertyChanged -= OnSelectedVolumeChanged;
+
+            _observedSelectedVolume = change.GetNewValue<BuildingVolume?>();
+            if (_observedSelectedVolume is not null)
+                _observedSelectedVolume.PropertyChanged += OnSelectedVolumeChanged;
+
+            _renderer.SelectedVolume =
+                _observedSelectedVolume;
+
+            RequestNextFrameRendering();
+        }
+        else if (change.Property == TransformModeProperty)
+        {
+            _renderer.TransformMode = change.GetNewValue<TransformMode>();
+            RequestNextFrameRendering();
+        }
     }
-}
+
+    private void OnSelectedVolumeChanged(
+        object? sender,
+        System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(BuildingVolume.Position)
+            or nameof(BuildingVolume.Rotation)
+            or nameof(BuildingVolume.Scale)
+            or nameof(BuildingVolume.Dimensions))
+        {
+            RequestNextFrameRendering();
+        }
+    }
+
+    private static Vector3 GetAxisDirection(GizmoAxis axis)
+    {
+        return axis switch
+        {
+            GizmoAxis.X => Vector3.UnitX,
+            GizmoAxis.Y => Vector3.UnitY,
+            GizmoAxis.Z => Vector3.UnitZ,
+            _ => Vector3.Zero
+        };
+    }
+
+
+    
+
 }
