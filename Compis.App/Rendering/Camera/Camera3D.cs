@@ -53,4 +53,70 @@ public sealed class Camera3D
     {
         Target = target;
     }
+
+
+    public void Orbit(float deltaYaw, float deltaPitch)
+    {
+        Vector3 offset = Position - Target;
+
+        float radius = offset.Length();
+
+        float yaw = MathF.Atan2(offset.Y, offset.X);
+        float pitch = MathF.Asin(offset.Z / radius);
+
+        yaw += deltaYaw;
+        pitch = Math.Clamp(
+            pitch + deltaPitch,
+            -1.45f,
+            1.45f
+        );
+
+        Position = Target + new Vector3(
+            radius * MathF.Cos(pitch) * MathF.Cos(yaw),
+            radius * MathF.Cos(pitch) * MathF.Sin(yaw),
+            radius * MathF.Sin(pitch)
+        );
+    }
+
+    public void Zoom(float amount)
+    {
+        Vector3 offset = Position - Target;
+        float distance = offset.Length();
+
+        distance = Math.Clamp(distance * MathF.Exp(-amount), 1f, 500f);
+
+        Position = Target + Vector3.Normalize(offset) * distance;
+    }
+
+    public void Pan(float deltaX, float deltaY)
+    {
+        Vector3 forward = Vector3.Normalize(Target - Position);
+        Vector3 right = Vector3.Normalize(
+            Vector3.Cross(forward, Up)
+        );
+
+        Vector3 movement =
+            right * deltaX +
+            Up * deltaY;
+
+        Position += movement;
+        Target += movement;
+    }
+
+
+    public void ZoomTowards(float amount)
+    {
+        Vector3 offset = Position - Target;
+        float distance = offset.Length();
+
+        distance = Math.Clamp(
+            distance * MathF.Exp(-amount),
+            1f,
+            500f
+        );
+
+        Position = Target + Vector3.Normalize(offset) * distance;
+    }
+
+
 }

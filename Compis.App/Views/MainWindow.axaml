@@ -132,11 +132,11 @@
 
             <!-- CENTRAL VIEWPORT -->
 
-            <Grid Grid.Column="1"
-                Grid.Row="1"
-                Background="#202327">
+                        <Grid Grid.Column="1"
+                                Background="#202327">
 
                 <controls:ViewportControl
+                    Scene="{Binding Scene}"
                     HorizontalAlignment="Stretch"
                     VerticalAlignment="Stretch"/>
 

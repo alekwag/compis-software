@@ -2,6 +2,7 @@
 using Avalonia.OpenGL;
 using Silk.NET.OpenGL;
 using Compis.App.Rendering.Camera;
+using Compis.Core.Scene;
 
 namespace Compis.App.Rendering;
 
@@ -9,8 +10,11 @@ public sealed class CompisRenderer
 {
     private GL? _gl;
     private GridRenderer? _grid;
+    private BuildingVolumeRenderer? _buildingRenderer;
 
     private readonly Camera3D _camera = new();
+
+    public BuildingScene? Scene { get; set; }
 
     public void Initialize(GlInterface gl)
     {
@@ -20,11 +24,14 @@ public sealed class CompisRenderer
 
         _grid = new GridRenderer(_gl);
         _grid.Initialize();
+
+        _buildingRenderer = new BuildingVolumeRenderer(_gl);
+        _buildingRenderer.Initialize();
     }
 
     public void Render(int framebuffer, int width, int height)
     {
-        if (_gl is null || _grid is null)
+        if (_gl is null || _grid is null || _buildingRenderer is null)
             return;
 
         _gl.BindFramebuffer(FramebufferTarget.Framebuffer, (uint)framebuffer);
@@ -45,14 +52,36 @@ public sealed class CompisRenderer
         var projection = _camera.GetProjectionMatrix(aspectRatio);
 
         _grid.Render(view, projection);
+
+        if (Scene is not null)
+        {
+            _buildingRenderer.Render(Scene, view, projection);
+        }
     }
 
     public void Dispose()
     {
+        _buildingRenderer?.Dispose();
         _grid?.Dispose();
         _gl?.Dispose();
 
+        _buildingRenderer = null;
         _grid = null;
         _gl = null;
+    }
+
+    public void Orbit(float deltaYaw, float deltaPitch)
+    {
+        _camera.Orbit(deltaYaw, deltaPitch);
+    }
+
+    public void Pan(float deltaX, float deltaY)
+    {
+        _camera.Pan(deltaX, deltaY);
+    }
+
+    public void Zoom(float amount)
+    {
+        _camera.Zoom(amount);
     }
 }
