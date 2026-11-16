@@ -69,6 +69,69 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
+    private TransformSpace _currentTransformSpace = TransformSpace.Global;
+
+    public TransformSpace CurrentTransformSpace
+    {
+        get => _currentTransformSpace;
+        set
+        {
+            if (SetProperty(ref _currentTransformSpace, value))
+            {
+                OnPropertyChanged(nameof(IsGlobalSpace));
+                OnPropertyChanged(nameof(IsLocalSpace));
+            }
+        }
+    }
+
+    public bool IsGlobalSpace
+    {
+        get => CurrentTransformSpace == TransformSpace.Global;
+        set
+        {
+            if (value)
+                CurrentTransformSpace = TransformSpace.Global;
+            else if (IsGlobalSpace)
+                OnPropertyChanged(nameof(IsGlobalSpace));
+        }
+    }
+
+    public bool IsLocalSpace
+    {
+        get => CurrentTransformSpace == TransformSpace.Local;
+        set
+        {
+            if (value)
+                CurrentTransformSpace = TransformSpace.Local;
+            else if (IsLocalSpace)
+                OnPropertyChanged(nameof(IsLocalSpace));
+        }
+    }
+
+    private bool _showVertices = true;
+
+    public bool ShowVertices
+    {
+        get => _showVertices;
+        set => SetProperty(ref _showVertices, value);
+    }
+
+    private bool _showEdges = true;
+
+    public bool ShowEdges
+    {
+        get => _showEdges;
+        set => SetProperty(ref _showEdges, value);
+    }
+
+    private bool _showFaces = true;
+
+    public bool ShowFaces
+    {
+        get => _showFaces;
+        set => SetProperty(ref _showFaces, value);
+    }
+
     [ObservableProperty]
     public partial string Greeting { get; set; } = "Welcome to Compis!";
 

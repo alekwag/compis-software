@@ -25,7 +25,10 @@ public static class GizmoAxisPicker
         float viewportHeight,
         Vector3 origin,
         Matrix4x4 view,
-        Matrix4x4 projection)
+        Matrix4x4 projection,
+        Vector3 axisX,
+        Vector3 axisY,
+        Vector3 axisZ)
     {
         if (viewportWidth <= 0 || viewportHeight <= 0)
             return GizmoAxis.None;
@@ -36,17 +39,17 @@ public static class GizmoAxisPicker
 
         TestAxis(
             mousePosition, viewportWidth, viewportHeight, origin,
-            Vector3.UnitX, GizmoAxis.X, viewProjection,
+            axisX, GizmoAxis.X, viewProjection,
             ref closestDistance, ref selectedAxis);
 
         TestAxis(
             mousePosition, viewportWidth, viewportHeight, origin,
-            Vector3.UnitY, GizmoAxis.Y, viewProjection,
+            axisY, GizmoAxis.Y, viewProjection,
             ref closestDistance, ref selectedAxis);
 
         TestAxis(
             mousePosition, viewportWidth, viewportHeight, origin,
-            Vector3.UnitZ, GizmoAxis.Z, viewProjection,
+            axisZ, GizmoAxis.Z, viewProjection,
             ref closestDistance, ref selectedAxis);
 
         return selectedAxis;
@@ -58,7 +61,10 @@ public static class GizmoAxisPicker
         float viewportHeight,
         Vector3 origin,
         Matrix4x4 view,
-        Matrix4x4 projection)
+        Matrix4x4 projection,
+        Vector3 axisX,
+        Vector3 axisY,
+        Vector3 axisZ)
     {
         if (viewportWidth <= 0 || viewportHeight <= 0)
             return GizmoAxis.None;
@@ -68,13 +74,13 @@ public static class GizmoAxisPicker
         GizmoAxis selectedAxis = GizmoAxis.None;
 
         TestRing(mousePosition, viewportWidth, viewportHeight, origin,
-            Vector3.UnitY, Vector3.UnitZ, GizmoAxis.X, viewProjection,
+            axisY, axisZ, GizmoAxis.X, viewProjection,
             ref closestDistance, ref selectedAxis);
         TestRing(mousePosition, viewportWidth, viewportHeight, origin,
-            Vector3.UnitZ, Vector3.UnitX, GizmoAxis.Y, viewProjection,
+            axisZ, axisX, GizmoAxis.Y, viewProjection,
             ref closestDistance, ref selectedAxis);
         TestRing(mousePosition, viewportWidth, viewportHeight, origin,
-            Vector3.UnitX, Vector3.UnitY, GizmoAxis.Z, viewProjection,
+            axisX, axisY, GizmoAxis.Z, viewProjection,
             ref closestDistance, ref selectedAxis);
 
         return selectedAxis;
@@ -85,7 +91,9 @@ public static class GizmoAxisPicker
         float viewportWidth,
         float viewportHeight,
         Vector3 origin,
-        GizmoAxis axis,
+        Vector3 axisDirection,
+        Vector3 basisU,
+        Vector3 basisV,
         Matrix4x4 view,
         Matrix4x4 projection,
         out float angle)
@@ -96,17 +104,16 @@ public static class GizmoAxisPicker
                 view * projection, out Vector3 rayOrigin, out Vector3 rayDirection))
             return false;
 
-        Vector3 axisNormal = GetAxisDirection(axis);
-        float denominator = Vector3.Dot(rayDirection, axisNormal);
+        axisDirection = Vector3.Normalize(axisDirection);
+        float denominator = Vector3.Dot(rayDirection, axisDirection);
         if (MathF.Abs(denominator) < 0.0001f)
             return false;
 
-        float rayParameter = Vector3.Dot(origin - rayOrigin, axisNormal) / denominator;
+        float rayParameter = Vector3.Dot(origin - rayOrigin, axisDirection) / denominator;
         if (rayParameter < 0f)
             return false;
 
         Vector3 radial = rayOrigin + rayDirection * rayParameter - origin;
-        GetRotationBasis(axis, out Vector3 basisU, out Vector3 basisV);
         float coordinateU = Vector3.Dot(radial, basisU);
         float coordinateV = Vector3.Dot(radial, basisV);
         if (coordinateU * coordinateU + coordinateV * coordinateV < 0.0001f)
@@ -201,28 +208,6 @@ public static class GizmoAxisPicker
 
         rayDirection = Vector3.Normalize(rayVector);
         return true;
-    }
-
-    private static Vector3 GetAxisDirection(GizmoAxis axis) => axis switch
-    {
-        GizmoAxis.X => Vector3.UnitX,
-        GizmoAxis.Y => Vector3.UnitY,
-        GizmoAxis.Z => Vector3.UnitZ,
-        _ => Vector3.Zero
-    };
-
-    private static void GetRotationBasis(
-        GizmoAxis axis,
-        out Vector3 basisU,
-        out Vector3 basisV)
-    {
-        (basisU, basisV) = axis switch
-        {
-            GizmoAxis.X => (Vector3.UnitY, Vector3.UnitZ),
-            GizmoAxis.Y => (Vector3.UnitZ, Vector3.UnitX),
-            GizmoAxis.Z => (Vector3.UnitX, Vector3.UnitY),
-            _ => (Vector3.UnitX, Vector3.UnitY)
-        };
     }
 
     private static void TestAxis(

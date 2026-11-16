@@ -138,6 +138,10 @@
                     Scene="{Binding Scene}"
                     SelectedVolume="{Binding SelectedVolume}"
                     TransformMode="{Binding CurrentTransformMode}"
+                                        TransformSpace="{Binding CurrentTransformSpace}"
+                    ShowVertices="{Binding ShowVertices}"
+                    ShowEdges="{Binding ShowEdges}"
+                    ShowFaces="{Binding ShowFaces}"
                     HorizontalAlignment="Stretch"
                     VerticalAlignment="Stretch"/>
 
@@ -150,6 +154,39 @@
                     <TextBlock Text="PERSPECTIVE"
                             FontSize="10"
                             Foreground="#B8BBC0"/>
+                </Border>
+
+                <Border HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Margin="18"
+                        Padding="5"
+                        Background="#292D32"
+                        BorderBrush="#41454A"
+                        BorderThickness="1"
+                        CornerRadius="4">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <ToggleButton Content="Global"
+                                Width="62" Height="30"
+                                IsChecked="{Binding IsGlobalSpace, Mode=TwoWay}"
+                                ToolTip.Tip="Use world axes"/>
+                        <ToggleButton Content="Local"
+                                Width="54" Height="30"
+                                IsChecked="{Binding IsLocalSpace, Mode=TwoWay}"
+                                ToolTip.Tip="Use object axes"/>
+                        <Border Width="1" Height="20" Background="#41454A" VerticalAlignment="Center" Margin="3,0"/>
+                        <ToggleButton Content="Verts"
+                                Width="62" Height="30"
+                                IsChecked="{Binding ShowVertices, Mode=TwoWay}"
+                                ToolTip.Tip="Show vertices"/>
+                        <ToggleButton Content="Edges"
+                                Width="58" Height="30"
+                                IsChecked="{Binding ShowEdges, Mode=TwoWay}"
+                                ToolTip.Tip="Show thick box edges"/>
+                        <ToggleButton Content="Faces"
+                                Width="58" Height="30"
+                                IsChecked="{Binding ShowFaces, Mode=TwoWay}"
+                                ToolTip.Tip="Show shaded box faces"/>
+                    </StackPanel>
                 </Border>
 
             </Grid>

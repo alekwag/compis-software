@@ -20,6 +20,10 @@ public sealed class CompisRenderer
 
     public BuildingVolume? SelectedVolume { get; set; }
     public TransformMode TransformMode { get; set; } = TransformMode.Translate;
+    public TransformSpace TransformSpace { get; set; } = TransformSpace.Global;
+    public bool ShowVertices { get; set; } = true;
+    public bool ShowEdges { get; set; } = true;
+    public bool ShowFaces { get; set; } = true;
     private TransformGizmoRenderer? _gizmo;
 
     public void Initialize(GlInterface gl)
@@ -64,6 +68,9 @@ public sealed class CompisRenderer
 
         if (Scene is not null)
         {
+            _buildingRenderer.ShowVertices = ShowVertices;
+            _buildingRenderer.ShowEdges = ShowEdges;
+            _buildingRenderer.ShowFaces = ShowFaces;
             _buildingRenderer.Render(Scene, view, projection);
         }
 
@@ -71,7 +78,9 @@ public sealed class CompisRenderer
         {
             _gizmo?.Render(
                 SelectedVolume.Position,
+                SelectedVolume.Rotation,
                 TransformMode,
+                TransformSpace,
                 view,
                 projection);
         }

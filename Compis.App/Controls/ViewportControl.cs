@@ -25,6 +25,9 @@ public sealed class ViewportControl : OpenGlControlBase, ICustomHitTest
     private float _dragStartAxisParameter;
     private Rotation3D _dragStartRotation = Rotation3D.Zero;
     private Scale3D _dragStartScale = Scale3D.One;
+    private Vector3 _dragAxisDirection;
+    private Vector3 _dragRotationBasisU;
+    private Vector3 _dragRotationBasisV;
     private TransformMode _dragMode;
     private float _lastRotationAngle;
     private float _rotationDragTotal;
@@ -58,6 +61,43 @@ public sealed class ViewportControl : OpenGlControlBase, ICustomHitTest
     {
         get => GetValue(TransformModeProperty);
         set => SetValue(TransformModeProperty, value);
+    }
+
+    public static readonly StyledProperty<TransformSpace> TransformSpaceProperty =
+        AvaloniaProperty.Register<ViewportControl, TransformSpace>(
+            nameof(TransformSpace), TransformSpace.Global);
+
+    public TransformSpace TransformSpace
+    {
+        get => GetValue(TransformSpaceProperty);
+        set => SetValue(TransformSpaceProperty, value);
+    }
+
+    public static readonly StyledProperty<bool> ShowVerticesProperty =
+        AvaloniaProperty.Register<ViewportControl, bool>(nameof(ShowVertices), true);
+
+    public bool ShowVertices
+    {
+        get => GetValue(ShowVerticesProperty);
+        set => SetValue(ShowVerticesProperty, value);
+    }
+
+    public static readonly StyledProperty<bool> ShowEdgesProperty =
+        AvaloniaProperty.Register<ViewportControl, bool>(nameof(ShowEdges), true);
+
+    public bool ShowEdges
+    {
+        get => GetValue(ShowEdgesProperty);
+        set => SetValue(ShowEdgesProperty, value);
+    }
+
+    public static readonly StyledProperty<bool> ShowFacesProperty =
+        AvaloniaProperty.Register<ViewportControl, bool>(nameof(ShowFaces), true);
+
+    public bool ShowFaces
+    {
+        get => GetValue(ShowFacesProperty);
+        set => SetValue(ShowFacesProperty, value);
     }
 
     private bool _rendererInitialized;
@@ -131,15 +171,17 @@ public sealed class ViewportControl : OpenGlControlBase, ICustomHitTest
                 (float)SelectedVolume.Position.X,
                 (float)SelectedVolume.Position.Y,
                 (float)SelectedVolume.Position.Z);
+            GetGizmoAxes(SelectedVolume.Rotation, TransformSpace,
+                out Vector3 axisX, out Vector3 axisY, out Vector3 axisZ);
 
             Vector2 pointerPosition = new((float)pointer.X, (float)pointer.Y);
             _dragAxis = TransformMode == TransformMode.Rotate
                 ? GizmoAxisPicker.PickRotationAxis(
                     pointerPosition, (float)Bounds.Width, (float)Bounds.Height,
-                    origin, view, projection)
+                    origin, view, projection, axisX, axisY, axisZ)
                 : GizmoAxisPicker.PickAxis(
                     pointerPosition, (float)Bounds.Width, (float)Bounds.Height,
-                    origin, view, projection);
+                    origin, view, projection, axisX, axisY, axisZ);
 
             if (_dragAxis != GizmoAxis.None)
             {
@@ -147,12 +189,17 @@ public sealed class ViewportControl : OpenGlControlBase, ICustomHitTest
                 _dragStartRotation = SelectedVolume.Rotation;
                 _dragStartScale = SelectedVolume.Scale;
                 _dragMode = TransformMode;
+                _dragAxisDirection = GetAxisDirection(_dragAxis, axisX, axisY, axisZ);
+                GetRotationPlaneBasis(_dragAxis, axisX, axisY, axisZ,
+                    out _dragRotationBasisU, out _dragRotationBasisV);
 
                 if (_dragMode == TransformMode.Rotate)
                 {
                     if (GizmoAxisPicker.TryGetRotationAngle(
                             pointerPosition, (float)Bounds.Width, (float)Bounds.Height,
-                            origin, _dragAxis, view, projection, out float startAngle))
+                            origin, _dragAxisDirection,
+                            _dragRotationBasisU, _dragRotationBasisV,
+                            view, projection, out float startAngle))
                     {
                         _lastRotationAngle = startAngle;
                         _rotationDragTotal = 0f;
@@ -166,7 +213,7 @@ public sealed class ViewportControl : OpenGlControlBase, ICustomHitTest
                         (float)Bounds.Width,
                         (float)Bounds.Height,
                         origin,
-                        GetAxisDirection(_dragAxis),
+                        _dragAxisDirection,
                         view,
                         projection);
                     _isDragging = true;
@@ -220,7 +267,9 @@ public sealed class ViewportControl : OpenGlControlBase, ICustomHitTest
             {
                 if (!GizmoAxisPicker.TryGetRotationAngle(
                         pointerPosition, (float)Bounds.Width, (float)Bounds.Height,
-                        origin, _dragAxis, view, projection, out float currentAngle))
+                        origin, _dragAxisDirection,
+                        _dragRotationBasisU, _dragRotationBasisV,
+                        view, projection, out float currentAngle))
                     return;
 
                 float step = currentAngle - _lastRotationAngle;
@@ -249,7 +298,7 @@ public sealed class ViewportControl : OpenGlControlBase, ICustomHitTest
                     (float)Bounds.Width,
                     (float)Bounds.Height,
                     origin,
-                    GetAxisDirection(_dragAxis),
+                    _dragAxisDirection,
                     view,
                     projection);
 
@@ -268,7 +317,7 @@ public sealed class ViewportControl : OpenGlControlBase, ICustomHitTest
                 }
                 else
                 {
-                    Vector3 newPosition = origin + GetAxisDirection(_dragAxis) * movement;
+                    Vector3 newPosition = origin + _dragAxisDirection * movement;
                     SelectedVolume.MoveTo(new Position3D(
                         newPosition.X,
                         newPosition.Y,
@@ -396,6 +445,26 @@ public sealed class ViewportControl : OpenGlControlBase, ICustomHitTest
             _renderer.TransformMode = change.GetNewValue<TransformMode>();
             RequestNextFrameRendering();
         }
+        else if (change.Property == TransformSpaceProperty)
+        {
+            _renderer.TransformSpace = change.GetNewValue<TransformSpace>();
+            RequestNextFrameRendering();
+        }
+        else if (change.Property == ShowVerticesProperty)
+        {
+            _renderer.ShowVertices = change.GetNewValue<bool>();
+            RequestNextFrameRendering();
+        }
+        else if (change.Property == ShowEdgesProperty)
+        {
+            _renderer.ShowEdges = change.GetNewValue<bool>();
+            RequestNextFrameRendering();
+        }
+        else if (change.Property == ShowFacesProperty)
+        {
+            _renderer.ShowFaces = change.GetNewValue<bool>();
+            RequestNextFrameRendering();
+        }
     }
 
     private void OnSelectedVolumeChanged(
@@ -411,14 +480,51 @@ public sealed class ViewportControl : OpenGlControlBase, ICustomHitTest
         }
     }
 
-    private static Vector3 GetAxisDirection(GizmoAxis axis)
+    private static void GetGizmoAxes(
+        Rotation3D rotation,
+        TransformSpace space,
+        out Vector3 axisX,
+        out Vector3 axisY,
+        out Vector3 axisZ)
     {
-        return axis switch
+        Quaternion orientation = space == TransformSpace.Local
+            ? Quaternion.CreateFromYawPitchRoll(
+                (float)(rotation.Y * Math.PI / 180.0),
+                (float)(rotation.X * Math.PI / 180.0),
+                (float)(rotation.Z * Math.PI / 180.0))
+            : Quaternion.Identity;
+
+        axisX = Vector3.Transform(Vector3.UnitX, orientation);
+        axisY = Vector3.Transform(Vector3.UnitY, orientation);
+        axisZ = Vector3.Transform(Vector3.UnitZ, orientation);
+    }
+
+    private static Vector3 GetAxisDirection(
+        GizmoAxis axis,
+        Vector3 axisX,
+        Vector3 axisY,
+        Vector3 axisZ) => axis switch
+    {
+        GizmoAxis.X => axisX,
+        GizmoAxis.Y => axisY,
+        GizmoAxis.Z => axisZ,
+        _ => Vector3.Zero
+    };
+
+    private static void GetRotationPlaneBasis(
+        GizmoAxis axis,
+        Vector3 axisX,
+        Vector3 axisY,
+        Vector3 axisZ,
+        out Vector3 basisU,
+        out Vector3 basisV)
+    {
+        (basisU, basisV) = axis switch
         {
-            GizmoAxis.X => Vector3.UnitX,
-            GizmoAxis.Y => Vector3.UnitY,
-            GizmoAxis.Z => Vector3.UnitZ,
-            _ => Vector3.Zero
+            GizmoAxis.X => (axisY, axisZ),
+            GizmoAxis.Y => (axisZ, axisX),
+            GizmoAxis.Z => (axisX, axisY),
+            _ => (Vector3.UnitX, Vector3.UnitY)
         };
     }
 

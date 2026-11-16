@@ -73,7 +73,9 @@ public sealed class TransformGizmoRenderer
 
     public unsafe void Render(
         Position3D position,
+        Rotation3D rotation,
         TransformMode mode,
+        TransformSpace space,
         Matrix4x4 view,
         Matrix4x4 projection)
     {
@@ -88,23 +90,32 @@ public sealed class TransformGizmoRenderer
         Vector3 xColour = new(0.90f, 0.20f, 0.18f);
         Vector3 yColour = new(0.25f, 0.80f, 0.30f);
         Vector3 zColour = new(0.25f, 0.50f, 1.0f);
+        Quaternion orientation = space == TransformSpace.Local
+            ? Quaternion.CreateFromYawPitchRoll(
+                DegreesToRadians(rotation.Y),
+                DegreesToRadians(rotation.X),
+                DegreesToRadians(rotation.Z))
+            : Quaternion.Identity;
+        Vector3 axisX = Vector3.Transform(Vector3.UnitX, orientation);
+        Vector3 axisY = Vector3.Transform(Vector3.UnitY, orientation);
+        Vector3 axisZ = Vector3.Transform(Vector3.UnitZ, orientation);
 
         switch (mode)
         {
             case TransformMode.Rotate:
-                AddRing(vertices, indices, origin, Vector3.UnitY, Vector3.UnitZ, xColour);
-                AddRing(vertices, indices, origin, Vector3.UnitZ, Vector3.UnitX, yColour);
-                AddRing(vertices, indices, origin, Vector3.UnitX, Vector3.UnitY, zColour);
+                AddRing(vertices, indices, origin, axisY, axisZ, xColour);
+                AddRing(vertices, indices, origin, axisZ, axisX, yColour);
+                AddRing(vertices, indices, origin, axisX, axisY, zColour);
                 break;
             case TransformMode.Scale:
-                AddScaleAxis(vertices, indices, origin, Vector3.UnitX, xColour);
-                AddScaleAxis(vertices, indices, origin, Vector3.UnitY, yColour);
-                AddScaleAxis(vertices, indices, origin, Vector3.UnitZ, zColour);
+                AddScaleAxis(vertices, indices, origin, axisX, xColour);
+                AddScaleAxis(vertices, indices, origin, axisY, yColour);
+                AddScaleAxis(vertices, indices, origin, axisZ, zColour);
                 break;
             default:
-                AddArrow(vertices, indices, origin, Vector3.UnitX, xColour);
-                AddArrow(vertices, indices, origin, Vector3.UnitY, yColour);
-                AddArrow(vertices, indices, origin, Vector3.UnitZ, zColour);
+                AddArrow(vertices, indices, origin, axisX, xColour);
+                AddArrow(vertices, indices, origin, axisY, yColour);
+                AddArrow(vertices, indices, origin, axisZ, zColour);
                 break;
         }
 
@@ -391,6 +402,9 @@ public sealed class TransformGizmoRenderer
         vertices.Add(colour.Y);
         vertices.Add(colour.Z);
     }
+
+    private static float DegreesToRadians(double degrees) =>
+        (float)(degrees * Math.PI / 180.0);
 
     public void Dispose()
     {

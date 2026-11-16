@@ -19,6 +19,8 @@ public sealed class BuildingVolume : INotifyPropertyChanged
 
     public Scale3D Scale { get; private set; }
 
+    public BoxParameters Parameters => new(Dimensions, Position, Rotation, Scale);
+
     public string Category { get; set; }
 
     public string Function { get; set; }

@@ -1,6 +1,5 @@
 
 using System.Numerics;
-using Compis.Core.Objects;
 using Compis.Core.Geometry.Meshes;
 using Compis.Core.Parameters;
 
@@ -8,24 +7,24 @@ namespace Compis.Core.Geometry.Generators;
 
 public static class BoxMeshGenerator
 {
-    public static MeshData Generate(BuildingVolume volume)
+    public static MeshData Generate(BoxParameters parameters)
     {
-        double halfWidth = volume.Dimensions.Width / 2;
-        double halfDepth = volume.Dimensions.Depth / 2;
-        double height = volume.Dimensions.Height;
+        double halfWidth = parameters.Dimensions.Width / 2;
+        double halfDepth = parameters.Dimensions.Depth / 2;
+        double height = parameters.Dimensions.Height;
 
         Vector3 position = new(
-            (float)volume.Position.X,
-            (float)volume.Position.Y,
-            (float)volume.Position.Z);
+            (float)parameters.Position.X,
+            (float)parameters.Position.Y,
+            (float)parameters.Position.Z);
         Vector3 scale = new(
-            (float)volume.Scale.X,
-            (float)volume.Scale.Y,
-            (float)volume.Scale.Z);
+            (float)parameters.Scale.X,
+            (float)parameters.Scale.Y,
+            (float)parameters.Scale.Z);
         Quaternion rotation = Quaternion.CreateFromYawPitchRoll(
-            DegreesToRadians(volume.Rotation.Y),
-            DegreesToRadians(volume.Rotation.X),
-            DegreesToRadians(volume.Rotation.Z));
+            DegreesToRadians(parameters.Rotation.Y),
+            DegreesToRadians(parameters.Rotation.X),
+            DegreesToRadians(parameters.Rotation.Z));
 
         Position3D Transform(double x, double y, double z)
         {
@@ -74,7 +73,14 @@ public static class BoxMeshGenerator
             1, 6, 5
         };
 
-        return new MeshData(vertices, triangles);
+        int[] edges =
+        [
+            0, 1, 1, 2, 2, 3, 3, 0,
+            4, 5, 5, 6, 6, 7, 7, 4,
+            0, 4, 1, 5, 2, 6, 3, 7
+        ];
+
+        return new MeshData(vertices, triangles, edges);
     }
 
     private static float DegreesToRadians(double degrees) =>

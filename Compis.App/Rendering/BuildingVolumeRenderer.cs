@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using Compis.Core.Geometry.Generators;
+using Compis.Core.Parameters;
 using Compis.Core.Scene;
 using Silk.NET.OpenGL;
 
@@ -19,6 +20,12 @@ public sealed class BuildingVolumeRenderer
 
     private int _viewLocation;
     private int _projectionLocation;
+    private int _vertexPassLocation;
+    private int _pointSizeLocation;
+
+    public bool ShowVertices { get; set; } = true;
+    public bool ShowEdges { get; set; } = true;
+    public bool ShowFaces { get; set; } = true;
 
     public BuildingVolumeRenderer(GL gl)
     {
@@ -60,6 +67,10 @@ public sealed class BuildingVolumeRenderer
 
         _projectionLocation =
             _gl.GetUniformLocation(_shaderProgram, "projection");
+        _vertexPassLocation =
+            _gl.GetUniformLocation(_shaderProgram, "vertexPass");
+        _pointSizeLocation =
+            _gl.GetUniformLocation(_shaderProgram, "pointSize");
 
         _gl.BindVertexArray(0);
     }
@@ -73,12 +84,13 @@ public sealed class BuildingVolumeRenderer
             return;
 
         var vertices = new List<float>();
-        var indices = new List<uint>();
+        var triangleIndices = new List<uint>();
+        var wireVertices = new List<float>();
+        var wireTriangleIndices = new List<uint>();
 
         foreach (var volume in scene.Volumes)
         {
-            var mesh = BoxMeshGenerator.Generate(volume);
-
+            var mesh = BoxMeshGenerator.Generate(volume.Parameters);
             uint vertexOffset = (uint)(vertices.Count / 6);
 
             foreach (var vertex in mesh.Vertices)
@@ -95,43 +107,27 @@ public sealed class BuildingVolumeRenderer
 
             foreach (int triangleIndex in mesh.Triangles)
             {
-                indices.Add(vertexOffset + (uint)triangleIndex);
+                triangleIndices.Add(vertexOffset + (uint)triangleIndex);
+            }
+
+            for (int edgeIndex = 0; edgeIndex < mesh.Edges.Count; edgeIndex += 2)
+            {
+                Position3D start = mesh.Vertices[mesh.Edges[edgeIndex]];
+                Position3D end = mesh.Vertices[mesh.Edges[edgeIndex + 1]];
+                AddThickEdge(wireVertices, wireTriangleIndices, start, end);
             }
         }
 
         float[] vertexData = vertices.ToArray();
-        uint[] indexData = indices.ToArray();
 
         _gl.BindVertexArray(_vertexArray);
-
         _gl.BindBuffer(
             BufferTargetARB.ArrayBuffer,
             _vertexBuffer);
-
-        fixed (float* vertexPointer = vertexData)
-        {
-            _gl.BufferData(
-                BufferTargetARB.ArrayBuffer,
-                (nuint)(vertexData.Length * sizeof(float)),
-                vertexPointer,
-                BufferUsageARB.DynamicDraw);
-        }
-
         _gl.BindBuffer(
             BufferTargetARB.ElementArrayBuffer,
             _indexBuffer);
-
-        fixed (uint* indexPointer = indexData)
-        {
-            _gl.BufferData(
-                BufferTargetARB.ElementArrayBuffer,
-                (nuint)(indexData.Length * sizeof(uint)),
-                indexPointer,
-                BufferUsageARB.DynamicDraw);
-        }
-
         _gl.UseProgram(_shaderProgram);
-
         _gl.UniformMatrix4(
             _viewLocation,
             1,
@@ -144,14 +140,123 @@ public sealed class BuildingVolumeRenderer
             false,
             (float*)&projection);
 
-        _gl.DrawElements(
-            PrimitiveType.Triangles,
-            (uint)indexData.Length,
-            DrawElementsType.UnsignedInt,
-            (void*)0);
+        if (ShowFaces)
+        {
+            UploadVertexData(vertices);
+            UploadIndexData(triangleIndices);
+            _gl.Uniform1(_vertexPassLocation, 0);
+            _gl.DrawElements(
+                PrimitiveType.Triangles,
+                (uint)triangleIndices.Count,
+                DrawElementsType.UnsignedInt,
+                (void*)0);
+        }
+
+        if (ShowEdges)
+        {
+            UploadVertexData(wireVertices);
+            UploadIndexData(wireTriangleIndices);
+            _gl.Uniform1(_vertexPassLocation, 0);
+            _gl.DrawElements(
+                PrimitiveType.Triangles,
+                (uint)wireTriangleIndices.Count,
+                DrawElementsType.UnsignedInt,
+                (void*)0);
+        }
+
+        if (ShowVertices)
+        {
+            UploadVertexData(vertices);
+            _gl.Uniform1(_vertexPassLocation, 1);
+            _gl.Uniform1(_pointSizeLocation, 10f);
+            _gl.PointSize(10f);
+            _gl.DrawArrays(PrimitiveType.Points, 0, (uint)(vertexData.Length / 6));
+            _gl.PointSize(1f);
+            _gl.Uniform1(_vertexPassLocation, 0);
+        }
 
         _gl.BindVertexArray(0);
         _gl.UseProgram(0);
+    }
+
+    private unsafe void UploadVertexData(List<float> vertices)
+    {
+        fixed (float* vertexPointer = vertices.ToArray())
+        {
+            _gl.BufferData(
+                BufferTargetARB.ArrayBuffer,
+                (nuint)(vertices.Count * sizeof(float)),
+                vertexPointer,
+                BufferUsageARB.DynamicDraw);
+        }
+    }
+
+    private unsafe void UploadIndexData(List<uint> indices)
+    {
+        fixed (uint* indexPointer = indices.ToArray())
+        {
+            _gl.BufferData(
+                BufferTargetARB.ElementArrayBuffer,
+                (nuint)(indices.Count * sizeof(uint)),
+                indexPointer,
+                BufferUsageARB.DynamicDraw);
+        }
+    }
+
+    private static void AddThickEdge(
+        List<float> vertices,
+        List<uint> indices,
+        Position3D startPosition,
+        Position3D endPosition)
+    {
+        Vector3 start = new((float)startPosition.X, (float)startPosition.Y, (float)startPosition.Z);
+        Vector3 end = new((float)endPosition.X, (float)endPosition.Y, (float)endPosition.Z);
+        Vector3 direction = end - start;
+        if (direction.LengthSquared() < 0.000001f)
+            return;
+
+        direction = Vector3.Normalize(direction);
+        Vector3 reference = MathF.Abs(Vector3.Dot(direction, Vector3.UnitZ)) > 0.9f
+            ? Vector3.UnitY
+            : Vector3.UnitZ;
+        Vector3 side = Vector3.Normalize(Vector3.Cross(direction, reference));
+        Vector3 up = Vector3.Normalize(Vector3.Cross(direction, side));
+        const float radius = 0.045f;
+        Vector3 colour = new(0.94f, 0.72f, 0.38f);
+        uint firstVertex = (uint)(vertices.Count / 6);
+
+        for (int endIndex = 0; endIndex < 2; endIndex++)
+        {
+            Vector3 center = endIndex == 0 ? start : end;
+            for (int sideIndex = 0; sideIndex < 4; sideIndex++)
+            {
+                float angle = sideIndex * MathF.Tau / 4;
+                Vector3 radial = (side * MathF.Cos(angle) + up * MathF.Sin(angle)) * radius;
+                Vector3 point = center + radial;
+                vertices.Add(point.X);
+                vertices.Add(point.Y);
+                vertices.Add(point.Z);
+                vertices.Add(colour.X);
+                vertices.Add(colour.Y);
+                vertices.Add(colour.Z);
+            }
+        }
+
+        for (uint sideIndex = 0; sideIndex < 4; sideIndex++)
+        {
+            uint next = (sideIndex + 1) % 4;
+            uint startA = firstVertex + sideIndex;
+            uint startB = firstVertex + next;
+            uint endA = firstVertex + 4 + sideIndex;
+            uint endB = firstVertex + 4 + next;
+
+            indices.Add(startA);
+            indices.Add(startB);
+            indices.Add(endA);
+            indices.Add(startB);
+            indices.Add(endB);
+            indices.Add(endA);
+        }
     }
 
     public void Dispose()
@@ -179,13 +284,17 @@ public sealed class BuildingVolumeRenderer
 
             uniform mat4 view;
             uniform mat4 projection;
+            uniform float pointSize;
 
             out vec3 vertexColor;
+            out vec3 worldPosition;
 
             void main()
             {
                 gl_Position = projection * view * vec4(aPosition, 1.0);
+                gl_PointSize = pointSize;
                 vertexColor = aColor;
+                worldPosition = aPosition;
             }
             """;
 
@@ -193,11 +302,27 @@ public sealed class BuildingVolumeRenderer
             #version 330 core
 
             in vec3 vertexColor;
+            in vec3 worldPosition;
+            uniform int vertexPass;
             out vec4 FragColor;
 
             void main()
             {
-                FragColor = vec4(vertexColor, 1.0);
+                if (vertexPass == 1)
+                {
+                    vec2 point = gl_PointCoord * 2.0 - 1.0;
+                    if (dot(point, point) > 1.0)
+                        discard;
+                    FragColor = vec4(1.0, 0.82, 0.28, 1.0);
+                }
+                else
+                {
+                    vec3 normal = normalize(cross(dFdx(worldPosition), dFdy(worldPosition)));
+                    vec3 lightDirection = normalize(vec3(-0.45, -0.65, 0.8));
+                    float diffuse = max(dot(normal, lightDirection), 0.0);
+                    float lighting = 0.38 + 0.62 * diffuse;
+                    FragColor = vec4(vertexColor * lighting, 1.0);
+                }
             }
             """;
 

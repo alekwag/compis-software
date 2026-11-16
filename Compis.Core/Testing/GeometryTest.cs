@@ -15,10 +15,12 @@ public static class GeometryTest
             new Position3D(0, 0, 0)
         );
 
-        var mesh = BoxMeshGenerator.Generate(building);
+        var mesh = BoxMeshGenerator.Generate(building.Parameters);
 
         Console.WriteLine($"Vertices: {mesh.Vertices.Count}");
         Console.WriteLine($"Triangles: {mesh.Triangles.Count / 3}");
+        if (mesh.Edges.Count != 24)
+            throw new InvalidOperationException($"Expected 12 box edges, got {mesh.Edges.Count / 2}.");
 
         var transformProbe = new BuildingVolume(
             "Transform Probe",
@@ -26,20 +28,20 @@ public static class GeometryTest
             new Position3D(10, 20, 30));
 
         AssertVertex(
-            BoxMeshGenerator.Generate(transformProbe).Vertices[0],
+            BoxMeshGenerator.Generate(transformProbe.Parameters).Vertices[0],
             9, 19, 30,
             "untransformed box");
 
         transformProbe.ScaleTo(new Scale3D(2, 1, 1));
         AssertVertex(
-            BoxMeshGenerator.Generate(transformProbe).Vertices[0],
+            BoxMeshGenerator.Generate(transformProbe.Parameters).Vertices[0],
             8, 19, 30,
             "scaled box");
 
         transformProbe.ScaleTo(Scale3D.One);
         transformProbe.RotateTo(new Rotation3D(0, 0, 90));
         AssertVertex(
-            BoxMeshGenerator.Generate(transformProbe).Vertices[0],
+            BoxMeshGenerator.Generate(transformProbe.Parameters).Vertices[0],
             11, 19, 30,
             "rotated box");
 
