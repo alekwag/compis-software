@@ -1,41 +1,58 @@
 
 using Avalonia.OpenGL;
-using OpenTK.Graphics.OpenGL4;
+using Silk.NET.OpenGL;
+using Compis.App.Rendering.Camera;
 
 namespace Compis.App.Rendering;
 
 public sealed class CompisRenderer
 {
-    private readonly GridRenderer _grid = new();
+    private GL? _gl;
+    private GridRenderer? _grid;
+
+    private readonly Camera3D _camera = new();
 
     public void Initialize(GlInterface gl)
     {
-        GL.LoadBindings(new AvaloniaBindingsContext(gl));
+        _gl = GL.GetApi(
+            procName => gl.GetProcAddress(procName)
+        );
 
+        _grid = new GridRenderer(_gl);
         _grid.Initialize();
     }
 
     public void Render(int framebuffer, int width, int height)
     {
-        GL.BindFramebuffer(
-            FramebufferTarget.Framebuffer,
-            framebuffer
-        );
+        if (_gl is null || _grid is null)
+            return;
 
-        GL.Viewport(0, 0, width, height);
+        _gl.BindFramebuffer(FramebufferTarget.Framebuffer, (uint)framebuffer);
+        _gl.Viewport(0, 0, (uint)width, (uint)height);
 
-        GL.ClearColor(0.125f, 0.137f, 0.153f, 1.0f);
+        _gl.Enable(EnableCap.DepthTest);
 
-        GL.Clear(
+        _gl.ClearColor(0.125f, 0.137f, 0.153f, 1.0f);
+
+        _gl.Clear(
             ClearBufferMask.ColorBufferBit |
             ClearBufferMask.DepthBufferBit
         );
 
-        _grid.Render();
+        float aspectRatio = (float)width / height;
+
+        var view = _camera.GetViewMatrix();
+        var projection = _camera.GetProjectionMatrix(aspectRatio);
+
+        _grid.Render(view, projection);
     }
 
     public void Dispose()
     {
-        _grid.Dispose();
+        _grid?.Dispose();
+        _gl?.Dispose();
+
+        _grid = null;
+        _gl = null;
     }
 }

@@ -1,89 +1,121 @@
+
 using System;
 using System.Collections.Generic;
-using OpenTK.Graphics.OpenGL4;
-
+using System.Numerics;
+using Silk.NET.OpenGL;
 
 namespace Compis.App.Rendering;
 
 public sealed class GridRenderer
 {
-    private int _vertexArray;
-    private int _vertexBuffer;
-    private int _shaderProgram;
-    private int _vertexCount;
+    private readonly GL _gl;
 
-    public void Initialize()
+    private uint _vertexArray;
+    private uint _vertexBuffer;
+    private uint _shaderProgram;
+    private uint _vertexCount;
+
+    private int _viewLocation;
+    private int _projectionLocation;
+
+    public GridRenderer(GL gl)
+    {
+        _gl = gl;
+    }
+
+    public unsafe void Initialize()
     {
         float[] vertices = CreateGridVertices();
-        _vertexCount = vertices.Length / 5;
+        _vertexCount = (uint)(vertices.Length / 6);
 
-        _vertexArray = GL.GenVertexArray();
-        _vertexBuffer = GL.GenBuffer();
+        _vertexArray = _gl.GenVertexArray();
+        _vertexBuffer = _gl.GenBuffer();
 
-        GL.BindVertexArray(_vertexArray);
-        GL.BindBuffer(BufferTarget.ArrayBuffer, _vertexBuffer);
+        _gl.BindVertexArray(_vertexArray);
+        _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vertexBuffer);
 
-        GL.BufferData(
-            BufferTarget.ArrayBuffer,
-            vertices.Length * sizeof(float),
-            vertices,
-            BufferUsageHint.StaticDraw
+        fixed (float* vertexPointer = vertices)
+        {
+            _gl.BufferData(
+                BufferTargetARB.ArrayBuffer,
+                (nuint)(vertices.Length * sizeof(float)),
+                vertexPointer,
+                BufferUsageARB.StaticDraw
+            );
+        }
+
+        _gl.VertexAttribPointer(
+            0, 3, VertexAttribPointerType.Float,
+            false, 6 * sizeof(float), (void*)0
         );
+        _gl.EnableVertexAttribArray(0);
 
-        // Position: two floats.
-        GL.VertexAttribPointer(
-            0, 2, VertexAttribPointerType.Float,
-            false, 5 * sizeof(float), 0
-        );
-        GL.EnableVertexAttribArray(0);
-
-        // Colour: three floats.
-        GL.VertexAttribPointer(
+        _gl.VertexAttribPointer(
             1, 3, VertexAttribPointerType.Float,
-            false, 5 * sizeof(float), 2 * sizeof(float)
+            false, 6 * sizeof(float), (void*)(3 * sizeof(float))
         );
-        GL.EnableVertexAttribArray(1);
+        _gl.EnableVertexAttribArray(1);
 
         _shaderProgram = CreateShaderProgram();
 
-        GL.BindVertexArray(0);
-        GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
+        _viewLocation = _gl.GetUniformLocation(_shaderProgram, "view");
+        _projectionLocation = _gl.GetUniformLocation(_shaderProgram, "projection");
+
+        _gl.BindVertexArray(0);
+        _gl.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
     }
 
-    public void Render()
+    public unsafe void Render(Matrix4x4 view, Matrix4x4 projection)
     {
-        GL.UseProgram(_shaderProgram);
-        GL.BindVertexArray(_vertexArray);
+        _gl.UseProgram(_shaderProgram);
 
-        GL.DrawArrays(
+        _gl.UniformMatrix4(
+            _viewLocation,
+            1,
+            false,
+            (float*)&view
+        );
+
+        _gl.UniformMatrix4(
+            _projectionLocation,
+            1,
+            false,
+            (float*)&projection
+        );
+
+        _gl.BindVertexArray(_vertexArray);
+
+        _gl.DrawArrays(
             PrimitiveType.Lines,
             0,
             _vertexCount
         );
 
-        GL.BindVertexArray(0);
-        GL.UseProgram(0);
+        _gl.BindVertexArray(0);
+        _gl.UseProgram(0);
     }
 
     public void Dispose()
     {
         if (_vertexBuffer != 0)
-            GL.DeleteBuffer(_vertexBuffer);
+            _gl.DeleteBuffer(_vertexBuffer);
 
         if (_vertexArray != 0)
-            GL.DeleteVertexArray(_vertexArray);
+            _gl.DeleteVertexArray(_vertexArray);
 
         if (_shaderProgram != 0)
-            GL.DeleteProgram(_shaderProgram);
+            _gl.DeleteProgram(_shaderProgram);
     }
 
     private static float[] CreateGridVertices()
     {
         var vertices = new List<float>();
 
-        for (int i = -10; i <= 10; i++)
+        const int gridSize = 50;
+
+        for (int i = -gridSize; i <= gridSize; i++)
         {
-            float position = i / 10f;
+            float position = i;
 
             bool isAxis = i == 0;
 
@@ -91,13 +123,11 @@ public sealed class GridRenderer
             float g = isAxis ? 0.61f : 0.29f;
             float b = isAxis ? 0.40f : 0.33f;
 
-            // Vertical line.
-            AddVertex(vertices, position, -1, r, g, b);
-            AddVertex(vertices, position,  1, r, g, b);
+            AddVertex(vertices, position, -gridSize, 0, r, g, b);
+            AddVertex(vertices, position, gridSize, 0, r, g, b);
 
-            // Horizontal line.
-            AddVertex(vertices, -1, position, r, g, b);
-            AddVertex(vertices,  1, position, r, g, b);
+            AddVertex(vertices, -gridSize, position, 0, r, g, b);
+            AddVertex(vertices, gridSize, position, 0, r, g, b);
         }
 
         return vertices.ToArray();
@@ -107,30 +137,35 @@ public sealed class GridRenderer
         List<float> vertices,
         float x,
         float y,
+        float z,
         float r,
         float g,
         float b)
     {
         vertices.Add(x);
         vertices.Add(y);
+        vertices.Add(z);
         vertices.Add(r);
         vertices.Add(g);
         vertices.Add(b);
     }
 
-    private static int CreateShaderProgram()
+    private uint CreateShaderProgram()
     {
         const string vertexShader = """
             #version 330 core
 
-            layout (location = 0) in vec2 aPosition;
+            layout (location = 0) in vec3 aPosition;
             layout (location = 1) in vec3 aColor;
+
+            uniform mat4 view;
+            uniform mat4 projection;
 
             out vec3 vertexColor;
 
             void main()
             {
-                gl_Position = vec4(aPosition, 0.0, 1.0);
+                gl_Position = projection * view * vec4(aPosition, 1.0);
                 vertexColor = aColor;
             }
             """;
@@ -147,74 +182,53 @@ public sealed class GridRenderer
             }
             """;
 
-        int vertex = CompileShader(
-            ShaderType.VertexShader,
-            vertexShader
-        );
+        uint vertex = CompileShader(ShaderType.VertexShader, vertexShader);
+        uint fragment = CompileShader(ShaderType.FragmentShader, fragmentShader);
 
-        int fragment = CompileShader(
-            ShaderType.FragmentShader,
-            fragmentShader
-        );
+        uint program = _gl.CreateProgram();
 
-        int program = GL.CreateProgram();
+        _gl.AttachShader(program, vertex);
+        _gl.AttachShader(program, fragment);
+        _gl.LinkProgram(program);
 
-        GL.AttachShader(program, vertex);
-        GL.AttachShader(program, fragment);
-        GL.LinkProgram(program);
-
-        GL.GetProgram(
-            program,
-            GetProgramParameterName.LinkStatus,
-            out int success
-        );
+        _gl.GetProgram(program, GLEnum.LinkStatus, out int success);
 
         if (success == 0)
         {
-            string log = GL.GetProgramInfoLog(program);
+            string log = _gl.GetProgramInfoLog(program);
 
-            GL.DeleteProgram(program);
-            GL.DeleteShader(vertex);
-            GL.DeleteShader(fragment);
+            _gl.DeleteProgram(program);
+            _gl.DeleteShader(vertex);
+            _gl.DeleteShader(fragment);
 
-            throw new InvalidOperationException(
-                $"Shader linking failed: {log}"
-            );
+            throw new InvalidOperationException($"Shader linking failed: {log}");
         }
 
-        GL.DetachShader(program, vertex);
-        GL.DetachShader(program, fragment);
+        _gl.DetachShader(program, vertex);
+        _gl.DetachShader(program, fragment);
 
-        GL.DeleteShader(vertex);
-        GL.DeleteShader(fragment);
+        _gl.DeleteShader(vertex);
+        _gl.DeleteShader(fragment);
 
         return program;
     }
 
-    private static int CompileShader(
-        ShaderType type,
-        string source)
+    private uint CompileShader(ShaderType type, string source)
     {
-        int shader = GL.CreateShader(type);
+        uint shader = _gl.CreateShader(type);
 
-        GL.ShaderSource(shader, source);
-        GL.CompileShader(shader);
+        _gl.ShaderSource(shader, source);
+        _gl.CompileShader(shader);
 
-        GL.GetShader(
-            shader,
-            ShaderParameter.CompileStatus,
-            out int success
-        );
+        _gl.GetShader(shader, GLEnum.CompileStatus, out int success);
 
         if (success == 0)
         {
-            string log = GL.GetShaderInfoLog(shader);
+            string log = _gl.GetShaderInfoLog(shader);
 
-            GL.DeleteShader(shader);
+            _gl.DeleteShader(shader);
 
-            throw new InvalidOperationException(
-                $"Shader compilation failed: {log}"
-            );
+            throw new InvalidOperationException($"Shader compilation failed: {log}");
         }
 
         return shader;

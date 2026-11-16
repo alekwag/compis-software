@@ -133,17 +133,12 @@
             <!-- CENTRAL VIEWPORT -->
 
             <Grid Grid.Column="1"
-                  Background="#202327">
+                Grid.Row="1"
+                Background="#202327">
 
-                <StackPanel HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            Spacing="12">
-
-                    <controls:ViewportControl
+                <controls:ViewportControl
                     HorizontalAlignment="Stretch"
                     VerticalAlignment="Stretch"/>
-
-                </StackPanel>
 
                 <Border HorizontalAlignment="Left"
                         VerticalAlignment="Top"
@@ -152,9 +147,8 @@
                         Padding="12,7">
 
                     <TextBlock Text="PERSPECTIVE"
-                               FontSize="10"
-                               Foreground="#B8BBC0"/>
-
+                            FontSize="10"
+                            Foreground="#B8BBC0"/>
                 </Border>
 
             </Grid>

@@ -74,9 +74,9 @@
               "target": "Package",
               "version": "[8.4.2, )"
             },
-            "OpenTK": {
+            "Silk.NET.OpenGL": {
               "target": "Package",
-              "version": "[4.9.4, )"
+              "version": "[2.23.0, )"
             }
           },
           "imports": [
