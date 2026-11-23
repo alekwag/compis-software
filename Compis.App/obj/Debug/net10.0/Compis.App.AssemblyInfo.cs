@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Compis.App")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3c4729063dd1ddb1f615086e469ef8c0fe8a84af")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1dc49d0aab2d4367c31fe2e12da4a5885374bab8")]
 [assembly: System.Reflection.AssemblyProductAttribute("Compis.App")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Compis.App")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
