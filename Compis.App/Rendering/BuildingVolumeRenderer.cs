@@ -22,6 +22,7 @@ public sealed class BuildingVolumeRenderer
     private int _projectionLocation;
     private int _vertexPassLocation;
     private int _pointSizeLocation;
+    private int _highlightPassLocation;
 
     public bool ShowVertices { get; set; } = true;
     public bool ShowEdges { get; set; } = true;
@@ -71,6 +72,8 @@ public sealed class BuildingVolumeRenderer
             _gl.GetUniformLocation(_shaderProgram, "vertexPass");
         _pointSizeLocation =
             _gl.GetUniformLocation(_shaderProgram, "pointSize");
+        _highlightPassLocation =
+            _gl.GetUniformLocation(_shaderProgram, "highlightPass");
 
         _gl.BindVertexArray(0);
     }
@@ -78,7 +81,8 @@ public sealed class BuildingVolumeRenderer
     public unsafe void Render(
         BuildingScene scene,
         Matrix4x4 view,
-        Matrix4x4 projection)
+        Matrix4x4 projection,
+        MeshElementSelection? selection)
     {
         if (scene.Volumes.Count == 0)
             return;
@@ -87,6 +91,13 @@ public sealed class BuildingVolumeRenderer
         var triangleIndices = new List<uint>();
         var wireVertices = new List<float>();
         var wireTriangleIndices = new List<uint>();
+        var faceHighlightVertices = new List<float>();
+        var edgeHighlightVertices = new List<float>();
+        var edgeHighlightIndices = new List<uint>();
+        var vertexHighlightVertices = new List<float>();
+        const float highlightR = 0.1f;
+        const float highlightG = 0.92f;
+        const float highlightB = 1f;
 
         foreach (var volume in scene.Volumes)
         {
@@ -99,10 +110,9 @@ public sealed class BuildingVolumeRenderer
                 vertices.Add((float)vertex.Y);
                 vertices.Add((float)vertex.Z);
 
-                // Warm architectural material colour.
-                vertices.Add(0.72f);
-                vertices.Add(0.53f);
-                vertices.Add(0.34f);
+                vertices.Add(volume.Color.Red);
+                vertices.Add(volume.Color.Green);
+                vertices.Add(volume.Color.Blue);
             }
 
             foreach (int triangleIndex in mesh.Triangles)
@@ -115,6 +125,42 @@ public sealed class BuildingVolumeRenderer
                 Position3D start = mesh.Vertices[mesh.Edges[edgeIndex]];
                 Position3D end = mesh.Vertices[mesh.Edges[edgeIndex + 1]];
                 AddThickEdge(wireVertices, wireTriangleIndices, start, end);
+            }
+
+            if (selection?.Volume == volume)
+            {
+                Vector3[] selectedPoints = new Vector3[selection.VertexIndices.Count];
+                for (int index = 0; index < selection.VertexIndices.Count; index++)
+                {
+                    Position3D selectedPoint = mesh.Vertices[selection.VertexIndices[index]];
+                    selectedPoints[index] = new Vector3(
+                        (float)selectedPoint.X,
+                        (float)selectedPoint.Y,
+                        (float)selectedPoint.Z);
+                }
+
+                if (selection.Mode == MeshElementMode.Vertex)
+                {
+                    foreach (Vector3 point in selectedPoints)
+                        AddVertex(vertexHighlightVertices, point, highlightR, highlightG, highlightB);
+                }
+                else if (selection.Mode == MeshElementMode.Edge && selectedPoints.Length == 2)
+                {
+                    AddThickEdge(edgeHighlightVertices, edgeHighlightIndices,
+                        selectedPoints[0], selectedPoints[1], 0.085f,
+                        highlightR, highlightG, highlightB);
+                }
+                else if (selection.Mode == MeshElementMode.Face && selectedPoints.Length == 4)
+                {
+                    Vector3 normal = Vector3.Normalize(Vector3.Cross(
+                        selectedPoints[1] - selectedPoints[0],
+                        selectedPoints[2] - selectedPoints[0]));
+                    Vector3 offset = normal * 0.012f;
+                    int[] order = [0, 1, 2, 0, 2, 3];
+                    foreach (int pointIndex in order)
+                        AddVertex(faceHighlightVertices, selectedPoints[pointIndex] + offset,
+                            highlightR, highlightG, highlightB);
+                }
             }
         }
 
@@ -175,6 +221,33 @@ public sealed class BuildingVolumeRenderer
             _gl.Uniform1(_vertexPassLocation, 0);
         }
 
+        if (faceHighlightVertices.Count > 0)
+        {
+            UploadVertexData(faceHighlightVertices);
+            _gl.Uniform1(_highlightPassLocation, 1);
+            _gl.DrawArrays(PrimitiveType.Triangles, 0, (uint)(faceHighlightVertices.Count / 6));
+            _gl.Uniform1(_highlightPassLocation, 0);
+        }
+
+        if (edgeHighlightVertices.Count > 0)
+        {
+            UploadVertexData(edgeHighlightVertices);
+            UploadIndexData(edgeHighlightIndices);
+            _gl.DrawElements(PrimitiveType.Triangles, (uint)edgeHighlightIndices.Count,
+                DrawElementsType.UnsignedInt, (void*)0);
+        }
+
+        if (vertexHighlightVertices.Count > 0)
+        {
+            UploadVertexData(vertexHighlightVertices);
+            _gl.Uniform1(_vertexPassLocation, 2);
+            _gl.Uniform1(_pointSizeLocation, 16f);
+            _gl.PointSize(16f);
+            _gl.DrawArrays(PrimitiveType.Points, 0, (uint)(vertexHighlightVertices.Count / 6));
+            _gl.PointSize(1f);
+            _gl.Uniform1(_vertexPassLocation, 0);
+        }
+
         _gl.BindVertexArray(0);
         _gl.UseProgram(0);
     }
@@ -211,6 +284,19 @@ public sealed class BuildingVolumeRenderer
     {
         Vector3 start = new((float)startPosition.X, (float)startPosition.Y, (float)startPosition.Z);
         Vector3 end = new((float)endPosition.X, (float)endPosition.Y, (float)endPosition.Z);
+        AddThickEdge(vertices, indices, start, end, 0.045f, 0.94f, 0.72f, 0.38f);
+    }
+
+    private static void AddThickEdge(
+        List<float> vertices,
+        List<uint> indices,
+        Vector3 start,
+        Vector3 end,
+        float radius,
+        float red,
+        float green,
+        float blue)
+    {
         Vector3 direction = end - start;
         if (direction.LengthSquared() < 0.000001f)
             return;
@@ -221,8 +307,6 @@ public sealed class BuildingVolumeRenderer
             : Vector3.UnitZ;
         Vector3 side = Vector3.Normalize(Vector3.Cross(direction, reference));
         Vector3 up = Vector3.Normalize(Vector3.Cross(direction, side));
-        const float radius = 0.045f;
-        Vector3 colour = new(0.94f, 0.72f, 0.38f);
         uint firstVertex = (uint)(vertices.Count / 6);
 
         for (int endIndex = 0; endIndex < 2; endIndex++)
@@ -236,9 +320,9 @@ public sealed class BuildingVolumeRenderer
                 vertices.Add(point.X);
                 vertices.Add(point.Y);
                 vertices.Add(point.Z);
-                vertices.Add(colour.X);
-                vertices.Add(colour.Y);
-                vertices.Add(colour.Z);
+                vertices.Add(red);
+                vertices.Add(green);
+                vertices.Add(blue);
             }
         }
 
@@ -257,6 +341,16 @@ public sealed class BuildingVolumeRenderer
             indices.Add(endB);
             indices.Add(endA);
         }
+    }
+
+    private static void AddVertex(List<float> vertices, Vector3 point, float red, float green, float blue)
+    {
+        vertices.Add(point.X);
+        vertices.Add(point.Y);
+        vertices.Add(point.Z);
+        vertices.Add(red);
+        vertices.Add(green);
+        vertices.Add(blue);
     }
 
     public void Dispose()
@@ -304,16 +398,23 @@ public sealed class BuildingVolumeRenderer
             in vec3 vertexColor;
             in vec3 worldPosition;
             uniform int vertexPass;
+            uniform int highlightPass;
             out vec4 FragColor;
 
             void main()
             {
-                if (vertexPass == 1)
+                if (vertexPass == 1 || vertexPass == 2)
                 {
                     vec2 point = gl_PointCoord * 2.0 - 1.0;
                     if (dot(point, point) > 1.0)
                         discard;
-                    FragColor = vec4(1.0, 0.82, 0.28, 1.0);
+                    FragColor = vertexPass == 2
+                        ? vec4(0.1, 0.92, 1.0, 1.0)
+                        : vec4(1.0, 0.82, 0.28, 1.0);
+                }
+                else if (highlightPass == 1)
+                {
+                    FragColor = vec4(0.1, 0.92, 1.0, 1.0);
                 }
                 else
                 {

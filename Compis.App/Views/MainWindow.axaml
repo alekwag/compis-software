@@ -115,6 +115,30 @@
                             Background="#41454A"
                             Margin="10,8"/>
 
+                    <ToggleButton Content="O"
+                            FontSize="13"
+                            IsChecked="{Binding IsObjectElementMode, Mode=TwoWay}"
+                            ToolTip.Tip="Select whole objects"/>
+
+                    <ToggleButton Content="•"
+                            FontSize="20"
+                            IsChecked="{Binding IsVertexElementMode, Mode=TwoWay}"
+                            ToolTip.Tip="Select and edit vertices"/>
+
+                    <ToggleButton Content="━"
+                            FontSize="16"
+                            IsChecked="{Binding IsEdgeElementMode, Mode=TwoWay}"
+                            ToolTip.Tip="Select and edit edges"/>
+
+                    <ToggleButton Content="▧"
+                            FontSize="18"
+                            IsChecked="{Binding IsFaceElementMode, Mode=TwoWay}"
+                            ToolTip.Tip="Select and edit faces"/>
+
+                    <Border Height="1"
+                            Background="#41454A"
+                            Margin="10,8"/>
+
                     <Button Content="+"
                             FontSize="24"
                             Width="36" Height="36" Padding="0"
@@ -136,8 +160,9 @@
 
                 <controls:ViewportControl
                     Scene="{Binding Scene}"
-                    SelectedVolume="{Binding SelectedVolume}"
+                                        SelectedVolume="{Binding SelectedVolume, Mode=TwoWay}"
                     TransformMode="{Binding CurrentTransformMode}"
+                    MeshElementMode="{Binding CurrentMeshElementMode}"
                                         TransformSpace="{Binding CurrentTransformSpace}"
                     ShowVertices="{Binding ShowVertices}"
                     ShowEdges="{Binding ShowEdges}"
@@ -243,6 +268,47 @@
                                FontSize="14"
                                FontWeight="SemiBold"
                                Foreground="#EEEEEE"/>
+
+                    <TextBlock Text="BOX COLOR"
+                            FontSize="10"
+                            Foreground="#C69B65"/>
+
+                    <Grid ColumnDefinitions="*,*,*,*"
+                            RowDefinitions="Auto,Auto"
+                            ColumnSpacing="8"
+                            RowSpacing="8">
+                        <Button Content=" " Height="28" Background="#B88757" BorderBrush="#D9B17A"
+                                Command="{Binding SetSelectedColorCommand}" CommandParameter="#B88757"
+                                ToolTip.Tip="Warm stone"/>
+                        <Button Grid.Column="1" Content=" " Height="28" Background="#C7C4BC" BorderBrush="#D9B17A"
+                                Command="{Binding SetSelectedColorCommand}" CommandParameter="#C7C4BC"
+                                ToolTip.Tip="Concrete"/>
+                        <Button Grid.Column="2" Content=" " Height="28" Background="#D7A64B" BorderBrush="#D9B17A"
+                                Command="{Binding SetSelectedColorCommand}" CommandParameter="#D7A64B"
+                                ToolTip.Tip="Ochre"/>
+                        <Button Grid.Column="3" Content=" " Height="28" Background="#8C9B83" BorderBrush="#D9B17A"
+                                Command="{Binding SetSelectedColorCommand}" CommandParameter="#8C9B83"
+                                ToolTip.Tip="Sage"/>
+                        <Button Grid.Row="1" Content=" " Height="28" Background="#7198A6" BorderBrush="#D9B17A"
+                                Command="{Binding SetSelectedColorCommand}" CommandParameter="#7198A6"
+                                ToolTip.Tip="Slate blue"/>
+                        <Button Grid.Row="1" Grid.Column="1" Content=" " Height="28" Background="#B96F5D" BorderBrush="#D9B17A"
+                                Command="{Binding SetSelectedColorCommand}" CommandParameter="#B96F5D"
+                                ToolTip.Tip="Terracotta"/>
+                        <Button Grid.Row="1" Grid.Column="2" Content=" " Height="28" Background="#68727B" BorderBrush="#D9B17A"
+                                Command="{Binding SetSelectedColorCommand}" CommandParameter="#68727B"
+                                ToolTip.Tip="Graphite"/>
+                        <Button Grid.Row="1" Grid.Column="3" Content=" " Height="28" Background="#E0D3B7" BorderBrush="#D9B17A"
+                                Command="{Binding SetSelectedColorCommand}" CommandParameter="#E0D3B7"
+                                ToolTip.Tip="Chalk"/>
+                    </Grid>
+
+                    <TextBlock Text="MESH EDIT"
+                            FontSize="10"
+                            Foreground="#C69B65"/>
+                    <TextBlock Text="{Binding CurrentMeshElementMode}"
+                            FontSize="12"
+                            Foreground="#EEEEEE"/>
 
                     <TextBlock Text="TRANSFORM"
                             FontSize="10"

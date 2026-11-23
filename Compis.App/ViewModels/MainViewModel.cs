@@ -1,4 +1,5 @@
 
+using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
@@ -67,6 +68,47 @@ public partial class MainViewModel : ViewModelBase
             else if (IsScaleMode)
                 OnPropertyChanged(nameof(IsScaleMode));
         }
+    }
+
+    private MeshElementMode _currentMeshElementMode = MeshElementMode.Object;
+
+    public MeshElementMode CurrentMeshElementMode
+    {
+        get => _currentMeshElementMode;
+        set
+        {
+            if (SetProperty(ref _currentMeshElementMode, value))
+            {
+                OnPropertyChanged(nameof(IsObjectElementMode));
+                OnPropertyChanged(nameof(IsVertexElementMode));
+                OnPropertyChanged(nameof(IsEdgeElementMode));
+                OnPropertyChanged(nameof(IsFaceElementMode));
+            }
+        }
+    }
+
+    public bool IsObjectElementMode
+    {
+        get => CurrentMeshElementMode == MeshElementMode.Object;
+        set { if (value) CurrentMeshElementMode = MeshElementMode.Object; }
+    }
+
+    public bool IsVertexElementMode
+    {
+        get => CurrentMeshElementMode == MeshElementMode.Vertex;
+        set { if (value) CurrentMeshElementMode = MeshElementMode.Vertex; }
+    }
+
+    public bool IsEdgeElementMode
+    {
+        get => CurrentMeshElementMode == MeshElementMode.Edge;
+        set { if (value) CurrentMeshElementMode = MeshElementMode.Edge; }
+    }
+
+    public bool IsFaceElementMode
+    {
+        get => CurrentMeshElementMode == MeshElementMode.Face;
+        set { if (value) CurrentMeshElementMode = MeshElementMode.Face; }
     }
 
     private TransformSpace _currentTransformSpace = TransformSpace.Global;
@@ -167,6 +209,8 @@ public partial class MainViewModel : ViewModelBase
                     _scaleXInput = value.Scale.X.ToString(CultureInfo.CurrentCulture);
                     _scaleYInput = value.Scale.Y.ToString(CultureInfo.CurrentCulture);
                     _scaleZInput = value.Scale.Z.ToString(CultureInfo.CurrentCulture);
+                    _colorHex = ToHex(value.Color);
+                    _colorHex = ToHex(value.Color);
                 }
                 else
                 {
@@ -182,6 +226,8 @@ public partial class MainViewModel : ViewModelBase
                     _scaleXInput = "";
                     _scaleYInput = "";
                     _scaleZInput = "";
+                    _colorHex = "";
+                    _colorHex = "";
                 }
 
                 OnPropertyChanged(nameof(WidthInput));
@@ -196,6 +242,8 @@ public partial class MainViewModel : ViewModelBase
                 OnPropertyChanged(nameof(ScaleXInput));
                 OnPropertyChanged(nameof(ScaleYInput));
                 OnPropertyChanged(nameof(ScaleZInput));
+                OnPropertyChanged(nameof(ColorHex));
+                OnPropertyChanged(nameof(ColorHex));
             }
         }
     }
@@ -237,6 +285,16 @@ public partial class MainViewModel : ViewModelBase
             OnPropertyChanged(nameof(ScaleXInput));
             OnPropertyChanged(nameof(ScaleYInput));
             OnPropertyChanged(nameof(ScaleZInput));
+        }
+        else if (e.PropertyName == nameof(BuildingVolume.Color))
+        {
+            _colorHex = ToHex(volume.Color);
+            OnPropertyChanged(nameof(ColorHex));
+        }
+        else if (e.PropertyName == nameof(BuildingVolume.Color))
+        {
+            _colorHex = ToHex(volume.Color);
+            OnPropertyChanged(nameof(ColorHex));
         }
     }
 
@@ -468,5 +526,35 @@ public partial class MainViewModel : ViewModelBase
 
         SelectedVolume.ScaleTo(new Scale3D(x, y, z));
     }
-    
+
+    private string _colorHex = "#B88757";
+
+    public string ColorHex
+    {
+        get => _colorHex;
+        private set => SetProperty(ref _colorHex, value);
+    }
+
+    [RelayCommand]
+    private void SetSelectedColor(string? hex)
+    {
+        if (SelectedVolume is null || string.IsNullOrWhiteSpace(hex))
+            return;
+
+        string value = hex.Trim().TrimStart('#');
+        if (value.Length != 6 || !uint.TryParse(value, NumberStyles.HexNumber,
+                CultureInfo.InvariantCulture, out uint rgb))
+            return;
+
+        SelectedVolume.SetColor(new MaterialColor(
+            ((rgb >> 16) & 0xFF) / 255f,
+            ((rgb >> 8) & 0xFF) / 255f,
+            (rgb & 0xFF) / 255f));
+    }
+
+    private static string ToHex(MaterialColor color) =>
+        $"#{(int)(Math.Clamp(color.Red, 0f, 1f) * 255):X2}" +
+        $"{(int)(Math.Clamp(color.Green, 0f, 1f) * 255):X2}" +
+        $"{(int)(Math.Clamp(color.Blue, 0f, 1f) * 255):X2}";
+
 }

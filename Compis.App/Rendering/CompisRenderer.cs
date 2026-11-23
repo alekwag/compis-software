@@ -21,9 +21,11 @@ public sealed class CompisRenderer
     public BuildingVolume? SelectedVolume { get; set; }
     public TransformMode TransformMode { get; set; } = TransformMode.Translate;
     public TransformSpace TransformSpace { get; set; } = TransformSpace.Global;
+    public MeshElementMode MeshElementMode { get; set; } = MeshElementMode.Object;
     public bool ShowVertices { get; set; } = true;
     public bool ShowEdges { get; set; } = true;
     public bool ShowFaces { get; set; } = true;
+    public MeshElementSelection? MeshElementSelection { get; set; }
     private TransformGizmoRenderer? _gizmo;
 
     public void Initialize(GlInterface gl)
@@ -71,13 +73,33 @@ public sealed class CompisRenderer
             _buildingRenderer.ShowVertices = ShowVertices;
             _buildingRenderer.ShowEdges = ShowEdges;
             _buildingRenderer.ShowFaces = ShowFaces;
-            _buildingRenderer.Render(Scene, view, projection);
+            _buildingRenderer.Render(Scene, view, projection, MeshElementSelection);
         }
 
-        if (SelectedVolume is not null)
+        if (SelectedVolume is not null && MeshElementMode == MeshElementMode.Object)
         {
             _gizmo?.Render(
                 SelectedVolume.Position,
+                SelectedVolume.Rotation,
+                TransformMode,
+                TransformSpace,
+                view,
+                projection);
+        }
+        else if (SelectedVolume is not null &&
+                 MeshElementMode != MeshElementMode.Object &&
+                 MeshElementSelection is { } selection &&
+                 selection.Volume == SelectedVolume)
+        {
+            Vector3 gizmoPosition = selection.Mode == MeshElementMode.Vertex
+                ? new Vector3((float)SelectedVolume.Position.X,
+                    (float)SelectedVolume.Position.Y,
+                    (float)SelectedVolume.Position.Z)
+                : selection.WorldCentroid;
+            var componentPosition = new Compis.Core.Parameters.Position3D(
+                gizmoPosition.X, gizmoPosition.Y, gizmoPosition.Z);
+            _gizmo?.Render(
+                componentPosition,
                 SelectedVolume.Rotation,
                 TransformMode,
                 TransformSpace,
@@ -121,4 +143,5 @@ public sealed class CompisRenderer
         _camera.GetProjectionMatrix(aspectRatio);
 
     public Vector3 CameraPosition => _camera.Position;
+    public Vector3 CameraForward => Vector3.Normalize(_camera.Target - _camera.Position);
     }

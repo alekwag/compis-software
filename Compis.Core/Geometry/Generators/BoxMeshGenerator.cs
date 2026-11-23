@@ -26,24 +26,31 @@ public static class BoxMeshGenerator
             DegreesToRadians(parameters.Rotation.X),
             DegreesToRadians(parameters.Rotation.Z));
 
-        Position3D Transform(double x, double y, double z)
+        Position3D Transform(double x, double y, double z, int vertexIndex)
         {
-            Vector3 local = new((float)x, (float)y, (float)z);
+            Position3D offset = parameters.VertexOffsets is { Count: > 0 } offsets &&
+                vertexIndex < offsets.Count
+                    ? offsets[vertexIndex]
+                    : new Position3D(0, 0, 0);
+            Vector3 local = new(
+                (float)(x + offset.X),
+                (float)(y + offset.Y),
+                (float)(z + offset.Z));
             Vector3 transformed = Vector3.Transform(local * scale, rotation) + position;
             return new Position3D(transformed.X, transformed.Y, transformed.Z);
         }
 
         var vertices = new List<Position3D>
         {
-            Transform(-halfWidth, -halfDepth, 0),
-            Transform(halfWidth, -halfDepth, 0),
-            Transform(halfWidth, halfDepth, 0),
-            Transform(-halfWidth, halfDepth, 0),
+            Transform(-halfWidth, -halfDepth, 0, 0),
+            Transform(halfWidth, -halfDepth, 0, 1),
+            Transform(halfWidth, halfDepth, 0, 2),
+            Transform(-halfWidth, halfDepth, 0, 3),
 
-            Transform(-halfWidth, -halfDepth, height),
-            Transform(halfWidth, -halfDepth, height),
-            Transform(halfWidth, halfDepth, height),
-            Transform(-halfWidth, halfDepth, height)
+            Transform(-halfWidth, -halfDepth, height, 4),
+            Transform(halfWidth, -halfDepth, height, 5),
+            Transform(halfWidth, halfDepth, height, 6),
+            Transform(-halfWidth, halfDepth, height, 7)
         };
 
         var triangles = new List<int>
